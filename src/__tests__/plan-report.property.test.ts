@@ -143,6 +143,8 @@ describe('diffJson (property)', () => {
       fc.property(fc.jsonValue(), (v) => {
         expect(diffJson(v, JSON.parse(canonicalJson(v)))).toEqual([]);
       }),
+      // A "__proto__" key used to be dropped by canonicalJson.
+      { examples: [[JSON.parse('{"":{"__proto__":""}}')]] },
     );
   });
 });

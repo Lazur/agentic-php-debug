@@ -333,8 +333,8 @@ export function diffJson(expected: unknown, actual: unknown, path = '$', out: st
   if (isPlainObject(expected) && isPlainObject(actual)) {
     const keys = new Set([...Object.keys(expected), ...Object.keys(actual)]);
     for (const key of [...keys].sort()) {
-      if (!(key in actual)) out.push(`${path}.${key}: missing (expected ${preview(expected[key])})`);
-      else if (!(key in expected)) out.push(`${path}.${key}: unexpected ${preview(actual[key])}`);
+      if (!Object.hasOwn(actual, key)) out.push(`${path}.${key}: missing (expected ${preview(expected[key])})`);
+      else if (!Object.hasOwn(expected, key)) out.push(`${path}.${key}: unexpected ${preview(actual[key])}`);
       else diffJson(expected[key], actual[key], `${path}.${key}`, out, max);
       if (out.length >= max) break;
     }

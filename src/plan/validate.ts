@@ -188,12 +188,14 @@ export function canonicalJson(value: unknown): string {
 function sortKeys(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(sortKeys);
   if (value && typeof value === 'object') {
-    const out: Record<string, unknown> = {};
-    for (const key of Object.keys(value as object).sort()) {
-      const v = (value as Record<string, unknown>)[key];
-      if (v !== undefined) out[key] = sortKeys(v);
-    }
-    return out;
+    // fromEntries defines keys, so "__proto__" stays a key instead of hitting the setter.
+    return Object.fromEntries(
+      Object.keys(value as object)
+        .sort()
+        .map((key) => [key, (value as Record<string, unknown>)[key]] as const)
+        .filter(([, v]) => v !== undefined)
+        .map(([key, v]) => [key, sortKeys(v)]),
+    );
   }
   return value;
 }
