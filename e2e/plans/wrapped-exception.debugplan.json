@@ -4,7 +4,7 @@
   "name": "wrapped-exception",
   "goal": "Which row fails to parse, and what does the wrapper hide?",
   "root": "../..",
-  "session": { "port": 9013, "pathMappings": { "/app": "${root}" } },
+  "session": { "port": 9013 },
   "trigger": { "kind": "command", "argv": ["sh", "e2e/php.sh", "e2e/fixtures/exception.php"] },
   "probes": [
     {

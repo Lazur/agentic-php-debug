@@ -493,7 +493,7 @@ npm run typecheck         # tsc --noEmit
 
 [CI](.github/workflows/ci.yml) runs on every push to any branch and on pull requests: format, lint, typecheck, plan-schema drift and a runtime `npm audit`; build and unit tests on Node 20, 22 and 24; then the e2e plans against PHP 8.4 with Xdebug.
 
-`test:e2e` needs a build and either a host PHP with Xdebug or Docker: [e2e/php.sh](e2e/php.sh) falls back to `ddev/ddev-webserver:v1.25.4` (override with `E2E_PHP_IMAGE`) and maps the container's `/app` back to this package. Each plan must match its golden in `e2e/golden/` on both surfaces; re-record after an intended change with `UPDATE_GOLDEN=1 npm run test:e2e`. [e2e/smoke/drupal.debugplan.json](e2e/smoke/drupal.debugplan.json) is the plan form of `scripts/smoke-http.mjs`, for a ddev Drupal site (`SMOKE_ROOT`, `SMOKE_URL`).
+`test:e2e` needs a build and either a host PHP with Xdebug or Docker: [e2e/php.sh](e2e/php.sh) falls back to `ddev/ddev-webserver:v1.25.4` (override with `E2E_PHP_IMAGE`) and mounts this package at the same path inside the container, so no path mapping is needed. Each plan must match its golden in `e2e/golden/` on both surfaces; re-record after an intended change with `UPDATE_GOLDEN=1 npm run test:e2e`. [e2e/smoke/drupal.debugplan.json](e2e/smoke/drupal.debugplan.json) is the plan form of `scripts/smoke-http.mjs`, for a ddev Drupal site (`SMOKE_ROOT`, `SMOKE_URL`).
 
 ## License
 

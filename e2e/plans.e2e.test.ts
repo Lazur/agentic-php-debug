@@ -81,8 +81,7 @@ describe.skipIf(!php)('plan mode as an agent sees it', () => {
   it('exposes only the plan tools, runs a plan server-side, and reports the same run as the golden', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'e2e-plan-mode-'));
     const config = join(dir, 'config.json');
-    // A running server keeps its own path mappings; the plan's are not applied.
-    writeFileSync(config, JSON.stringify({ pathMappings: { '/app': root } }));
+    writeFileSync(config, JSON.stringify({}));
 
     const client = new Client({ name: 'e2e', version: '0' });
     await client.connect(
@@ -149,7 +148,7 @@ describe.skipIf(!php)('react mode as an agent sees it', () => {
   it('observes a real step through debug_wait {snapshot}', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'e2e-react-'));
     const config = join(dir, 'config.json');
-    writeFileSync(config, JSON.stringify({ pathMappings: { '/app': root }, port: 9013 }));
+    writeFileSync(config, JSON.stringify({ port: 9013 }));
     const client = new Client({ name: 'e2e', version: '0' });
     await client.connect(
       new StdioClientTransport({

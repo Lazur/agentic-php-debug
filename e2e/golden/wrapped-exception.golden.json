@@ -51,7 +51,7 @@
   ],
   "outcome": "completed",
   "plan": {
-    "hash": "be85af5ae49651de20488b395396905d6043588e8ac4330313ca18c981fc0627",
+    "hash": "d456fd97e5340ad60fc5de43e00a450090a7b3af7aa3008def285c3613463074",
     "name": "wrapped-exception",
     "version": 1
   },

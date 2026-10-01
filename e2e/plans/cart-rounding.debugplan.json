@@ -18,7 +18,7 @@
       "predicts": [{ "probe": "line-total", "hit": 1, "expr": "$rounded", "equals": "3.34" }]
     }
   ],
-  "session": { "port": 9013, "pathMappings": { "/app": "${root}" } },
+  "session": { "port": 9013 },
   "trigger": { "kind": "command", "argv": ["sh", "e2e/php.sh", "e2e/fixtures/cart.php"] },
   "probes": [
     {
