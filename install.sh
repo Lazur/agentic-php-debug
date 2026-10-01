@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# PHP Debug MCP — installer.
+# Agentic PHP Debug — installer.
 #
 #   curl -fsSL https://raw.githubusercontent.com/Lazur/agentic-php-debug/main/install.sh | bash
 #   curl -fsSL https://raw.githubusercontent.com/Lazur/agentic-php-debug/main/install.sh | bash -s -- --project ~/code/my-app
@@ -13,10 +13,9 @@
 
 set -euo pipefail
 
-CORE_REPO="${PHP_DEBUG_MCP_REPO:-https://github.com/Lazur/agentic-php-debug.git}"
-EXT_REPO="${PHP_DEBUG_MCP_EXT_REPO:-https://github.com/Lazur/vscode-agentic-debug.git}"
+# PHP_DEBUG_MCP_* are the pre-rename names of these variables and are still read.
+CORE_REPO="${AGENTIC_PHP_DEBUG_REPO:-${PHP_DEBUG_MCP_REPO:-https://github.com/Lazur/agentic-php-debug.git}}"
 MIN_NODE=20
-EXT_ID="php-agentic-debug.vscode-agentic-debug"
 
 # --- output -----------------------------------------------------------------
 
@@ -35,27 +34,26 @@ WARNINGS=0
 
 usage() {
   cat <<EOF
-${B}PHP Debug MCP installer${N}
+${B}Agentic PHP Debug installer${N}
 
-Installs the MCP server (and optionally the VS Code extension), registers it with
-the MCP clients it finds, and checks that PHP + Xdebug can reach it.
+Installs the MCP server, registers it with the MCP clients it finds, and checks
+that PHP + Xdebug can reach it.
 
 ${B}Usage${N}
   install.sh [options]
 
 ${B}Where${N}
-  --dir DIR              Install root (default: \$PHP_DEBUG_MCP_HOME or ~/.php-debug-mcp)
+  --dir DIR              Install root (default: \$AGENTIC_PHP_DEBUG_HOME or ~/.agentic-php-debug)
   --ref REF              Git branch or tag to install (default: main)
-  --source DIR           Use an existing checkout of the core instead of cloning
+  --source DIR           Use an existing checkout instead of cloning
                          (default when install.sh is run from inside a checkout)
 
 ${B}What${N}
   --project DIR          Set up one PHP project: per-project config, skill link,
-                         project-scoped registration, VS Code agent files
+                         project-scoped registration
   --remote-root PATH     Docker/VM document root to map onto --project
                          (e.g. /var/www/html). Writes pathMappings for you.
   --port N               Xdebug listen port written into new configs (default: 9003)
-  --vscode               Also build and install the VS Code extension (needs 'code')
   --xdebug               Install/enable Xdebug for the local 'php' if it is missing
 
 ${B}MCP client registration${N}
@@ -72,19 +70,23 @@ ${B}Other${N}
   -h, --help             This help
 
 ${B}Environment${N}
-  PHP_DEBUG_MCP_HOME, PHP_DEBUG_MCP_REPO, PHP_DEBUG_MCP_EXT_REPO
+  AGENTIC_PHP_DEBUG_HOME, AGENTIC_PHP_DEBUG_REPO
+  (the old PHP_DEBUG_MCP_* names are still accepted)
 EOF
 }
 
 # --- arguments --------------------------------------------------------------
 
-INSTALL_DIR="${PHP_DEBUG_MCP_HOME:-$HOME/.php-debug-mcp}"
+# Installs from before the rename live in ~/.php-debug-mcp (see migrate_legacy_dir).
+LEGACY_DIR="$HOME/.php-debug-mcp"
+INSTALL_DIR="${AGENTIC_PHP_DEBUG_HOME:-${PHP_DEBUG_MCP_HOME:-}}"
+DEFAULT_DIR=0
+[ -n "$INSTALL_DIR" ] || { INSTALL_DIR="$HOME/.agentic-php-debug"; DEFAULT_DIR=1; }
 REF=main
 SOURCE=
 PROJECT=
 REMOTE_ROOT=
 XDEBUG_PORT=9003
-WITH_VSCODE=0
 WITH_XDEBUG=0
 CLIENTS=auto
 MODE=all
@@ -97,7 +99,7 @@ need_arg() { [ $# -ge 2 ] && [ -n "$2" ] || die "$1 needs a value (see --help)";
 parse_args() {
   while [ $# -gt 0 ]; do
     case "$1" in
-      --dir)          need_arg "$@"; INSTALL_DIR="$2"; shift ;;
+      --dir)          need_arg "$@"; INSTALL_DIR="$2"; DEFAULT_DIR=0; shift ;;
       --ref)          need_arg "$@"; REF="$2"; shift ;;
       --source)       need_arg "$@"; SOURCE="$2"; shift ;;
       --project)      need_arg "$@"; PROJECT="$2"; shift ;;
@@ -105,7 +107,6 @@ parse_args() {
       --port)         need_arg "$@"; XDEBUG_PORT="$2"; shift ;;
       --client)       need_arg "$@"; CLIENTS="$2"; shift ;;
       --mode)         need_arg "$@"; MODE="$2"; shift ;;
-      --vscode)       WITH_VSCODE=1 ;;
       --xdebug)       WITH_XDEBUG=1 ;;
       --allow-command-trigger) ALLOW_CMD=1 ;;
       --uninstall)    UNINSTALL=1 ;;
@@ -208,8 +209,23 @@ npm_install() {
   run_in "$dir" npm install --no-audit --no-fund
 }
 
+# True when only a pre-rename install exists and no --dir / *_HOME overrides the default.
+has_legacy_install() {
+  [ "$DEFAULT_DIR" = 1 ] && [ ! -e "$INSTALL_DIR" ] && [ -d "$LEGACY_DIR" ] && [ ! -L "$LEGACY_DIR" ]
+}
+
+# Move a pre-rename install to the new default and leave a link behind, so MCP
+# client configs that still name ~/.php-debug-mcp/bin/php-debug-mcp keep working.
+migrate_legacy_dir() {
+  has_legacy_install || return 0
+  mv "$LEGACY_DIR" "$INSTALL_DIR"
+  ln -s "$INSTALL_DIR" "$LEGACY_DIR"
+  ok "moved $LEGACY_DIR to $INSTALL_DIR (the old path is now a link)"
+}
+
 install_core() {
   step "Installing the MCP server"
+  migrate_legacy_dir
   mkdir -p "$INSTALL_DIR"
   LOG="$INSTALL_DIR/install.log"
   : >"$LOG"
@@ -217,8 +233,6 @@ install_core() {
     CORE_DIR="$SOURCE"
     ok "using checkout $CORE_DIR"
   else
-    # The directory must be named agentic-php-debug: the VS Code extension depends
-    # on it as "file:../agentic-php-debug".
     CORE_DIR="$INSTALL_DIR/agentic-php-debug"
     fetch_repo "$CORE_REPO" "$CORE_DIR"
   fi
@@ -239,26 +253,33 @@ install_core() {
 write_shims() {
   mkdir -p "$INSTALL_DIR/bin"
   local name target
-  for pair in "php-debug-mcp:dist/index.js" "php-debug-plan:dist/plan/cli.js"; do
+  # php-debug-mcp is the pre-rename name of the server shim, kept for existing client configs.
+  for pair in "agentic-php-debug:dist/index.js" "php-debug-mcp:dist/index.js" "php-debug-plan:dist/plan/cli.js"; do
     name="${pair%%:*}"; target="${pair#*:}"
     cat >"$INSTALL_DIR/bin/$name" <<EOF
 #!/bin/sh
-# Generated by php-debug-mcp install.sh — re-run the installer to regenerate.
+# Generated by agentic-php-debug install.sh — re-run the installer to regenerate.
 NODE="$NODE_BIN"
 [ -x "\$NODE" ] || NODE=node
 exec "\$NODE" "$CORE_DIR/$target" "\$@"
 EOF
     chmod +x "$INSTALL_DIR/bin/$name"
   done
-  SERVER_CMD="$INSTALL_DIR/bin/php-debug-mcp"
+  SERVER_CMD="$INSTALL_DIR/bin/agentic-php-debug"
   ok "shims in $INSTALL_DIR/bin"
 
   local bindir="$HOME/.local/bin"
   case ":$PATH:" in
     *":$bindir:"*)
-      ln -sf "$INSTALL_DIR/bin/php-debug-mcp" "$bindir/php-debug-mcp"
+      ln -sf "$INSTALL_DIR/bin/agentic-php-debug" "$bindir/agentic-php-debug"
       ln -sf "$INSTALL_DIR/bin/php-debug-plan" "$bindir/php-debug-plan"
-      ok "linked php-debug-mcp and php-debug-plan into $bindir" ;;
+      # Re-point a pre-rename php-debug-mcp link; never create a new one.
+      if [ -L "$bindir/php-debug-mcp" ]; then
+        case "$(readlink "$bindir/php-debug-mcp")" in
+          "$INSTALL_DIR"/*|"$LEGACY_DIR"/*) ln -sf "$INSTALL_DIR/bin/php-debug-mcp" "$bindir/php-debug-mcp" ;;
+        esac
+      fi
+      ok "linked agentic-php-debug and php-debug-plan into $bindir" ;;
     *)
       info "to use the CLIs from a shell: export PATH=\"$INSTALL_DIR/bin:\$PATH\"" ;;
   esac
@@ -320,7 +341,11 @@ configure() {
   CONFIG="$GLOBAL_CONFIG"
   RUNS_DIR=
   if [ -n "$PROJECT" ]; then
-    CONFIG="$PROJECT/.php-debug-mcp.json"
+    CONFIG="$PROJECT/.agentic-php-debug.json"
+    if [ ! -f "$CONFIG" ] && [ -f "$PROJECT/.php-debug-mcp.json" ]; then
+      CONFIG="$PROJECT/.php-debug-mcp.json"
+      info "using the pre-rename $CONFIG — rename it to .agentic-php-debug.json when convenient"
+    fi
     write_config "$CONFIG" "$REMOTE_ROOT" "$PROJECT"
     RUNS_DIR="$PROJECT/.php-debug-plan/runs"
     [ -z "$REMOTE_ROOT" ] || info "maps $REMOTE_ROOT (container) → $PROJECT (host)"
@@ -407,7 +432,7 @@ write_client_snippet() {
   info "paste its mcpServers into claude_desktop_config.json, ~/.cursor/mcp.json or .kiro/settings/mcp.json"
 }
 
-# --- skill + VS Code --------------------------------------------------------
+# --- skill ------------------------------------------------------------------
 
 link_skill() {
   local src="$CORE_DIR/skills/php-debug-modes"
@@ -422,45 +447,6 @@ link_skill() {
   else
     ln -sfn "$src" "$dest"
     ok "php-debug-modes → $dest"
-  fi
-}
-
-install_vscode() {
-  [ "$WITH_VSCODE" = 1 ] || return 0
-  step "VS Code extension"
-  has code || { warn "'code' is not on PATH (VS Code: Cmd+Shift+P → 'Shell Command: Install code command'). Skipping."; return; }
-
-  local ext_dir
-  if [ -n "$SOURCE" ] && [ -d "$(dirname "$SOURCE")/vscode-agentic-debug" ]; then
-    ext_dir="$(dirname "$SOURCE")/vscode-agentic-debug"
-    ok "using checkout $ext_dir"
-  else
-    ext_dir="$(dirname "$CORE_DIR")/vscode-agentic-debug"
-    [ "$(basename "$CORE_DIR")" = agentic-php-debug ] \
-      || die "the extension needs the core checked out as a sibling named agentic-php-debug (found $CORE_DIR)"
-    fetch_repo "$EXT_REPO" "$ext_dir"
-  fi
-
-  info "npm install + bundle…"
-  npm_install "$ext_dir"
-  run_in "$ext_dir" npm run bundle
-  local vsix="$INSTALL_DIR/vscode-agentic-debug.vsix"
-  run_in "$ext_dir" npx --yes @vscode/vsce package --allow-missing-repository --skip-license -o "$vsix"
-  run_in "$ext_dir" code --install-extension "$vsix" --force
-  ok "installed $EXT_ID — reload VS Code windows to pick it up"
-
-  if [ -n "$PROJECT" ]; then
-    mkdir -p "$PROJECT/.github/agents"
-    local f
-    for f in DebugAgent.agent.md DebugPlanner.agent.md; do
-      [ -f "$ext_dir/$f" ] || continue
-      if [ -e "$PROJECT/.github/agents/$f" ]; then
-        info "kept existing .github/agents/$f"
-      else
-        cp "$ext_dir/$f" "$PROJECT/.github/agents/$f"
-        ok "copied $f → .github/agents/ (Copilot custom agent)"
-      fi
-    done
   fi
 }
 
@@ -534,13 +520,13 @@ install_xdebug() {
 # second one makes PHP warn "Cannot load Xdebug - it was already loaded".
 write_xdebug_ini() {
   local scan; scan="$(php -r 'echo PHP_CONFIG_FILE_SCAN_DIR;' 2>/dev/null)"
-  local ini="$scan/99-php-debug-mcp.ini"
+  local ini="$scan/99-agentic-php-debug.ini"
   if [ -z "$scan" ] || [ ! -w "$scan" ]; then
     warn "cannot write to PHP's ini scan dir (${scan:-none}) — add the settings below by hand"
     return 1
   fi
   cat >"$ini" <<EOF
-; Written by php-debug-mcp install.sh
+; Written by agentic-php-debug install.sh
 xdebug.mode=debug
 ; "trigger": only requests/processes carrying XDEBUG_TRIGGER or XDEBUG_SESSION
 ; start a session. Debug plans send it for you; in a browser use ?XDEBUG_TRIGGER=1.
@@ -549,15 +535,22 @@ xdebug.client_host=127.0.0.1
 xdebug.client_port=$XDEBUG_PORT
 EOF
   ok "wrote $ini"
+  # Drop the pre-rename file so the settings are not loaded twice — only if we wrote it.
+  local legacy="$scan/99-php-debug-mcp.ini"
+  if [ -f "$legacy" ] && [ "$(head -n 1 "$legacy")" = "; Written by php-debug-mcp install.sh" ]; then
+    rm -f "$legacy" && ok "removed the pre-rename $legacy"
+  fi
 }
 
 # --- uninstall --------------------------------------------------------------
 
 uninstall() {
+  if has_legacy_install; then INSTALL_DIR="$LEGACY_DIR"; fi
   step "Uninstalling from $INSTALL_DIR"
   case "$INSTALL_DIR" in /|"$HOME"|"$HOME"/) die "refusing to remove $INSTALL_DIR" ;; esac
-  if [ -d "$INSTALL_DIR" ] && [ ! -e "$INSTALL_DIR/bin/php-debug-mcp" ] && [ ! -d "$INSTALL_DIR/agentic-php-debug" ] && [ ! -d "$INSTALL_DIR/ts-php-debug-mcp" ]; then
-    die "$INSTALL_DIR does not look like a php-debug-mcp install — not removing it"
+  if [ -d "$INSTALL_DIR" ] && [ ! -e "$INSTALL_DIR/bin/agentic-php-debug" ] && [ ! -e "$INSTALL_DIR/bin/php-debug-mcp" ] \
+    && [ ! -d "$INSTALL_DIR/agentic-php-debug" ] && [ ! -d "$INSTALL_DIR/ts-php-debug-mcp" ]; then
+    die "$INSTALL_DIR does not look like an agentic-php-debug install — not removing it"
   fi
   if [ "$YES" != 1 ]; then
     if [ -r /dev/tty ]; then
@@ -581,18 +574,24 @@ uninstall() {
   done
   local link
   for link in "$HOME/.claude/skills/php-debug-modes" "${PROJECT:+$PROJECT/.claude/skills/php-debug-modes}" \
-              "$HOME/.local/bin/php-debug-mcp" "$HOME/.local/bin/php-debug-plan"; do
+              "$HOME/.local/bin/agentic-php-debug" "$HOME/.local/bin/php-debug-mcp" "$HOME/.local/bin/php-debug-plan"; do
     [ -n "$link" ] && [ -L "$link" ] || continue
-    case "$(readlink "$link")" in "$INSTALL_DIR"/*|*/agentic-php-debug/*|*/ts-php-debug-mcp/*) rm -f "$link"; ok "removed $link" ;; esac
+    case "$(readlink "$link")" in
+      "$INSTALL_DIR"/*|"$LEGACY_DIR"/*|*/agentic-php-debug/*|*/ts-php-debug-mcp/*) rm -f "$link"; ok "removed $link" ;;
+    esac
   done
-  if has code && code --list-extensions 2>/dev/null | grep -qi "^$EXT_ID\$"; then
-    code --uninstall-extension "$EXT_ID" >/dev/null && ok "removed VS Code extension"
-  fi
-  local ini; ini="$(php -r 'echo PHP_CONFIG_FILE_SCAN_DIR;' 2>/dev/null)/99-php-debug-mcp.ini"
-  [ ! -f "$ini" ] || info "left $ini in place (Xdebug settings) — delete it if you no longer want them"
+  local scan ini; scan="$(php -r 'echo PHP_CONFIG_FILE_SCAN_DIR;' 2>/dev/null || true)"
+  for ini in "$scan/99-agentic-php-debug.ini" "$scan/99-php-debug-mcp.ini"; do
+    [ -z "$scan" ] || [ ! -f "$ini" ] || info "left $ini in place (Xdebug settings) — delete it if you no longer want them"
+  done
   rm -rf "$INSTALL_DIR"
   ok "removed $INSTALL_DIR"
-  info "project files (.php-debug-mcp.json, .php-debug-plan/, .github/agents/) are yours and were left alone"
+  # The link migrate_legacy_dir left behind.
+  if [ -L "$LEGACY_DIR" ] && [ "$(readlink "$LEGACY_DIR")" = "$INSTALL_DIR" ]; then
+    rm -f "$LEGACY_DIR"
+    ok "removed $LEGACY_DIR"
+  fi
+  info "project files (.agentic-php-debug.json or .php-debug-mcp.json, .php-debug-plan/) are yours and were left alone"
 }
 
 # --- summary ----------------------------------------------------------------
@@ -641,7 +640,6 @@ main() {
   smoke_test
   register_clients
   link_skill
-  install_vscode
   check_xdebug
   summary
 }

@@ -4,7 +4,7 @@
 
 MCP server for PHP/Xdebug debugging via the [vscode-php-debug](https://github.com/xdebug/vscode-php-debug) DAP adapter. Exposes debug tools over the Model Context Protocol so an AI agent can launch, step through, inspect, and control PHP debug sessions — interactively (ReAct mode), or by writing a plan that runs whole, reproducibly, with or without an agent (plan mode). See [Run modes](#run-modes).
 
-This package is also **the shared core**: the session state machine, the 21 tool handlers, path mapping and the breakpoint ledger live here and are reused by the [`vscode-agentic-debug`](../vscode-agentic-debug/) extension through the `DebugBackend` interface. See [DESIGN.md](./docs/DESIGN.md) for the class diagrams.
+The session state machine, tool handlers, path mapping and breakpoint ledger are exported as a library, so other front ends can reuse them through the `DebugBackend` interface. See [DESIGN.md](./docs/DESIGN.md) for the class diagrams.
 
 ## Prerequisites
 
@@ -25,9 +25,6 @@ To upgrade: change the commit SHA of `php-debug` in `package.json`, `npm install
 MCP Client ──► agentic-php-debug ──► node phpDebug.js (DAP) ──► Xdebug (PHP)
 ```
 
-In the VS Code extension the same core runs with `VsCodeDebugBackend` in place of `DAPClient`, so
-VS Code owns the adapter and the developer sees the native debug UI.
-
 ## Quick start
 
 ```bash
@@ -35,7 +32,7 @@ curl -fsSL https://raw.githubusercontent.com/Lazur/agentic-php-debug/main/instal
 ```
 
 This builds the server, registers it with Claude Code and Codex, and checks Xdebug. Docker
-projects, VS Code, other MCP clients and every option are covered in [INSTALL.md](INSTALL.md).
+projects, other MCP clients and every option are covered in [INSTALL.md](INSTALL.md).
 
 From a clone:
 
@@ -93,7 +90,7 @@ Two ways for an agent to debug, chosen with `--mode`:
 | Model calls while PHP runs | one per step | none |
 | Reproducible | no | yes: re-run the plan, compare the report |
 
-The mode is enforced by the tool surface: a plan-mode server registers no step tools, so a plan cannot be revised mid-run. `--mode all` registers both, for development. Plans may spawn processes (trigger kind `command`) only with `--allow-command-trigger`. Finished runs are kept under `--runs-dir` (default `$TMPDIR/php-debug-mcp/runs`) and exposed as `php-debug://runs/{runId}/{report,journal,normalized}` resources; the plan schema is `php-debug://schemas/debug-plan.v1.json`.
+The mode is enforced by the tool surface: a plan-mode server registers no step tools, so a plan cannot be revised mid-run. `--mode all` registers both, for development. Plans may spawn processes (trigger kind `command`) only with `--allow-command-trigger`. Finished runs are kept under `--runs-dir` (default `$TMPDIR/agentic-php-debug/runs`) and exposed as `php-debug://runs/{runId}/{report,journal,normalized}` resources; the plan schema is `php-debug://schemas/debug-plan.v1.json`.
 
 Both modes side by side, as client configuration: [`mcp.example.json`](mcp.example.json), explained
 under [MCP client configuration](#mcp-client-configuration).
@@ -132,14 +129,13 @@ Plans run PHP through their own trigger, never through the config's `program`: t
 
 ### Running a plan without an agent
 
-There are three ways to run a plan by hand. None of them consults a model, and all three give the
+There are two ways to run a plan by hand. Neither consults a model, and both give the
 same stops, values and verdicts as an agent's `debug_plan_run` call.
 
 | Route | What it runs | Use it for |
 |---|---|---|
 | `php-debug-plan run` (CLI) | the plan runner, in the CLI process | CI, goldens, re-running a plan from the terminal |
 | `debug_plan_run` via an MCP client | the `debug_plan_run` tool of a `--mode plan` server | checking what an agent gets from that tool |
-| *Agentic Debug: Run Debug Plan…* (VS Code) | the extension's runner | running a plan from the editor (see [vscode-agentic-debug](../vscode-agentic-debug/README.md)) |
 
 #### CLI
 
@@ -207,7 +203,7 @@ npx @modelcontextprotocol/inspector --cli \
 - **No manual tool call inside Claude Code or Copilot Chat.** Neither client lets you call an MCP
   tool or LM tool yourself: `/mcp` in Claude Code only manages servers, and `#debugPlanRun` in
   Copilot Chat only offers the tool to the model. From those clients, use the CLI (in Claude Code,
-  `!node …/dist/plan/cli.js run …`) or the VS Code command.
+  `!node …/dist/plan/cli.js run …`).
 - **`--via mcp-stdio` and `--via mcp-http` do not call `debug_plan_run`.** They start a normal
   server and send it the step tools one at a time (`debug_launch`, `debug_set_breakpoints`,
   `debug_wait`, `debug_continue`, …). The plan runner stays in the CLI. These options test the
@@ -228,7 +224,7 @@ ln -s /absolute/path/to/agentic-php-debug/skills/php-debug-modes \
       your-php-project/.claude/skills/php-debug-modes
 ```
 
-It works for any surface — the MCP server, the CLI or VS Code — because it teaches the tools and the
+It works for any surface — the MCP server or the CLI — because it teaches the tools and the
 plan format, not one client. The MCP prompts `debug_plan` and `debug_react` cover the same ground in
 short form for clients that use prompts instead of skills.
 

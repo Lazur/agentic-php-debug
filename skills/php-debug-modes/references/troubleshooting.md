@@ -112,7 +112,7 @@ default) to keep going and see it in the timeline.
 
 Each run writes `report.json`, `report.normalized.json` and `journal.jsonl`:
 
-- MCP server: under `--runs-dir` (default `$TMPDIR/php-debug-mcp/runs`), and readable as
+- MCP server: under `--runs-dir` (default `$TMPDIR/agentic-php-debug/runs`), and readable as
   `php-debug://runs/{runId}/{report,journal,normalized}`.
 - CLI: `--out`, else `./.php-debug-plan/runs/<runId>/`.
 - VS Code: `<workspace>/.agentic-debug/runs/<runId>/`.

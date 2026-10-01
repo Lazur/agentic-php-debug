@@ -59,7 +59,7 @@ const pathMapper = new PathMapper(mappings);
 
 // One store for the process: run ids are unique, and in HTTP mode a run made in
 // one MCP session can still be read from another.
-const runStore = new RunStore(resolve(values['runs-dir'] ?? join(tmpdir(), 'php-debug-mcp', 'runs')));
+const runStore = new RunStore(resolve(values['runs-dir'] ?? join(tmpdir(), 'agentic-php-debug', 'runs')));
 
 function readAdapterVersion(): string | undefined {
   try {

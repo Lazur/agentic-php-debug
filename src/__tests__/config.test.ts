@@ -39,11 +39,14 @@ const arbStreamSettings = fc.option(
   { nil: undefined },
 );
 
-const arbStringRecord = fc.dictionary(
-  fc.string({ minLength: 1, maxLength: 20 }),
-  fc.string({ minLength: 0, maxLength: 50 }),
-  { minKeys: 0, maxKeys: 3 },
-);
+// fast-check can generate a "__proto__" key, which JSON.parse turns into a prototype
+// rather than an own property, so the round trip would lose it.
+const arbKey = (maxLength: number) => fc.string({ minLength: 1, maxLength }).filter((k) => k !== '__proto__');
+
+const arbStringRecord = fc.dictionary(arbKey(20), fc.string({ minLength: 0, maxLength: 50 }), {
+  minKeys: 0,
+  maxKeys: 3,
+});
 
 const arbStringArray = fc.array(fc.string({ minLength: 0, maxLength: 30 }), { minLength: 0, maxLength: 5 });
 
@@ -52,7 +55,7 @@ const arbConfig: fc.Arbitrary<Config> = fc.record({
   port: fc.integer({ min: 1, max: 65535 }),
   hostname: fc.string({ minLength: 1, maxLength: 50 }),
   stopOnEntry: fc.boolean(),
-  pathMappings: fc.dictionary(fc.string({ minLength: 1, maxLength: 30 }), fc.string({ minLength: 1, maxLength: 30 }), {
+  pathMappings: fc.dictionary(arbKey(30), fc.string({ minLength: 1, maxLength: 30 }), {
     minKeys: 0,
     maxKeys: 3,
   }),

@@ -23,6 +23,7 @@ logs/
 # Machine-local MCP and debugger configs (mcp.example.json and config.php.*.json are the templates)
 .mcp.json
 inspector.mcp.json
+.agentic-php-debug.json
 .php-debug-mcp.json
 config.php.*.local.json
 

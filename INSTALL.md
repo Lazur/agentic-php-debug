@@ -1,4 +1,4 @@
-# Installing PHP Debug MCP
+# Installing Agentic PHP Debug
 
 Five minutes from nothing to an agent that can set breakpoints in your running PHP.
 
@@ -6,7 +6,7 @@ Five minutes from nothing to an agent that can set breakpoints in your running P
 curl -fsSL https://raw.githubusercontent.com/Lazur/agentic-php-debug/main/install.sh | bash
 ```
 
-This clones and builds the server into `~/.php-debug-mcp`, registers it with Claude Code and
+This clones and builds the server into `~/.agentic-php-debug`, registers it with Claude Code and
 Codex if they are installed, links the `php-debug-modes` agent skill, and checks your PHP for
 Xdebug. It runs a smoke test before it registers anything. Re-run the same command to update.
 
@@ -40,23 +40,13 @@ prints the one `apt`/`dnf`/`apk` command to run instead, because it will not `su
 curl -fsSL …/install.sh | bash -s -- --project ~/code/my-app --remote-root /var/www/html
 ```
 
-`--project` writes `my-app/.php-debug-mcp.json` with the path mapping container → host, registers
+`--project` writes `my-app/.agentic-php-debug.json` with the path mapping container → host, registers
 the server for that project only (Claude Code *local* scope, so no personal paths end up in a
 committed `.mcp.json`), links the skill into `my-app/.claude/skills/`, and stores plan runs in
 `my-app/.php-debug-plan/runs/`.
 
-**VS Code with Copilot agent mode** (you watch the debugger while the agent drives it):
-
-```bash
-curl -fsSL …/install.sh | bash -s -- --vscode --project ~/code/my-app
-```
-
-This builds and installs the *Agentic Debug* extension and copies the `DebugAgent` and
-`DebugPlanner` custom agents into `my-app/.github/agents/`. It needs the `code` command
-(VS Code: *Shell Command: Install 'code' command in PATH*).
-
 **Claude Desktop, Cursor, Kiro, Windsurf, or any other MCP client:** run the installer, then copy
-the `mcpServers` block from `~/.php-debug-mcp/mcp.json` into that client's config file:
+the `mcpServers` block from `~/.agentic-php-debug/mcp.json` into that client's config file:
 
 | Client | Config file |
 |---|---|
@@ -64,7 +54,7 @@ the `mcpServers` block from `~/.php-debug-mcp/mcp.json` into that client's confi
 | Cursor | `~/.cursor/mcp.json` |
 | Kiro | `.kiro/settings/mcp.json` |
 
-The entry calls `~/.php-debug-mcp/bin/php-debug-mcp`. That shim pins the `node` binary found at
+The entry calls `~/.agentic-php-debug/bin/agentic-php-debug`. That shim pins the `node` binary found at
 install time, so GUI apps that do not load your shell profile (nvm, fnm, Volta) still start it.
 
 ### Installer options
@@ -77,9 +67,8 @@ install time, so GUI apps that do not load your shell profile (nvm, fnm, Volta) 
 | `--client LIST` | `auto` | `claude`, `codex`, both, or `none`. `auto` = whichever is on `PATH` |
 | `--mode MODE` | `all` | `all` = one server with every tool; `split` = `php-debug` (ReAct) + `php-debug-plan` (plan); `react` or `plan` = only that one |
 | `--allow-command-trigger` | off | Let debug plans start processes (`"trigger": {"kind": "command"}`). Without it, plans can only use HTTP triggers |
-| `--vscode` | off | Build and install the VS Code extension |
 | `--xdebug` | off | Install/configure Xdebug for the local `php` |
-| `--dir DIR` | `~/.php-debug-mcp` | Install root (or set `PHP_DEBUG_MCP_HOME`) |
+| `--dir DIR` | `~/.agentic-php-debug` | Install root (or set `AGENTIC_PHP_DEBUG_HOME`) |
 | `--ref REF` | `main` | Branch or tag |
 | `--source DIR` | none | Build an existing checkout instead of cloning (the default when you run `./install.sh` from a clone) |
 | `--uninstall [--yes]` | | Remove everything the installer added |
@@ -130,7 +119,7 @@ the live variables.
 You can run a debug plan with no agent at all:
 
 ```bash
-~/.php-debug-mcp/bin/php-debug-plan run my-bug.debugplan.json --config ~/.php-debug-mcp/config.json
+~/.agentic-php-debug/bin/php-debug-plan run my-bug.debugplan.json --config ~/.agentic-php-debug/config.json
 ```
 
 ## Update and uninstall
@@ -140,16 +129,20 @@ curl -fsSL …/install.sh | bash                    # update: same command, same
 curl -fsSL …/install.sh | bash -s -- --uninstall  # remove (asks first; add --yes in CI)
 ```
 
-Uninstall removes the MCP registrations, skill links, shims, the VS Code extension and
-`~/.php-debug-mcp`. It leaves project files (`.php-debug-mcp.json`, `.php-debug-plan/`,
-`.github/agents/`) and any Xdebug ini file in place.
+Uninstall removes the MCP registrations, skill links, shims and `~/.agentic-php-debug`. It leaves
+project files (`.agentic-php-debug.json`, `.php-debug-plan/`) and any Xdebug ini file in place.
+
+Installs from before the rename keep working. The installer moves `~/.php-debug-mcp` to
+`~/.agentic-php-debug` and leaves a link at the old path. It also keeps a `php-debug-mcp` shim
+next to `agentic-php-debug`, still reads `PHP_DEBUG_MCP_HOME` and `PHP_DEBUG_MCP_REPO`, and uses
+an existing `.php-debug-mcp.json` project file.
 
 ## Manual install
 
 What the script does, by hand:
 
 ```bash
-git clone https://github.com/Lazur/agentic-php-debug.git agentic-php-debug   # dir name matters for the VS Code extension
+git clone https://github.com/Lazur/agentic-php-debug.git
 cd agentic-php-debug && npm ci && npm run build
 echo '{ "port": 9003, "pathMappings": {} }' > ~/php-debug.json
 claude mcp add -s user php-debug -- node "$PWD/dist/index.js" --config ~/php-debug.json --mode all
@@ -162,9 +155,9 @@ ln -s "$PWD/skills/php-debug-modes" ~/.claude/skills/php-debug-modes
 |---|---|---|
 | `debug_launch`: *Port 9003 … is already in use* | Something else holds 9003: VS Code's *Listen for Xdebug*, a second `php-debug` server, PhpStorm | `lsof -nP -iTCP:9003 -sTCP:LISTEN`. Stop that process, or use `--port 9013` together with `xdebug.client_port=9013` |
 | Xdebug never connects | No trigger sent, wrong `client_host` in Docker, or the port is not the same on both sides | `php -i \| grep xdebug.client` on the PHP side. Docker needs `host.docker.internal` |
-| Breakpoint shows as verified but never hits | Path mapping is wrong, or the breakpoint is on a line that does not run (a comment, a closing brace) | Check `pathMappings` in `.php-debug-mcp.json`. Put breakpoints on statements |
-| GUI client: *spawn node ENOENT* | The client does not have your shell's `PATH` | Use the `~/.php-debug-mcp/bin/php-debug-mcp` shim, not `node`. Re-run the installer after you change Node versions |
+| Breakpoint shows as verified but never hits | Path mapping is wrong, or the breakpoint is on a line that does not run (a comment, a closing brace) | Check `pathMappings` in `.agentic-php-debug.json`. Put breakpoints on statements |
+| GUI client: *spawn node ENOENT* | The client does not have your shell's `PATH` | Use the `~/.agentic-php-debug/bin/agentic-php-debug` shim, not `node`. Re-run the installer after you change Node versions |
 | Installer: *predates the bundled adapter* | The ref is older than the bundled-adapter build | Use a newer `--ref`, or `--source` with a current checkout |
 
 More: `skills/php-debug-modes/references/troubleshooting.md` covers every run outcome and error code.
-The build log of the last install is at `~/.php-debug-mcp/install.log`.
+The build log of the last install is at `~/.agentic-php-debug/install.log`.

@@ -4,8 +4,8 @@
 // tool, and they carry hard-won operational guidance (breakpoint hit-count
 // resets, staged-vs-applied writes, DAP_TIMEOUT semantics, buffered event
 // replay). The VS Code extension's package.json used to keep hand-copied
-// versions that silently rotted; scripts/sync-schemas.ts now generates
-// `modelDescription` from here so there is exactly one copy.
+// versions that silently rotted; the extension now generates its
+// `modelDescription` from these exports so there is exactly one copy.
 
 export { debugLaunchDescription } from './debug-launch.js';
 export { debugTerminateDescription } from './debug-terminate.js';

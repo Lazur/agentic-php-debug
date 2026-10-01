@@ -59,8 +59,6 @@
     "build:adapter": "node scripts/build-adapter.mjs",
     "test": "vitest --run",
     "test:watch": "vitest",
-    "check-schemas": "tsx scripts/check-schemas.ts",
-    "sync-schemas": "tsx scripts/sync-schemas.ts",
     "emit-plan-schema": "tsx scripts/emit-plan-schema.ts",
     "check-plan-schema": "tsx scripts/emit-plan-schema.ts --check",
     "test:e2e": "vitest --run --config vitest.e2e.config.ts",

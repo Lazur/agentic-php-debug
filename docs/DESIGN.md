@@ -562,7 +562,7 @@ names tools the client can actually call.
 
 The VS Code extension's LM tool classes are the one path that does *not* go through the table:
 they call the `handleDebugX` functions directly (§3.3). Their manifest schemas are still
-generated from the same Zod by `npm run sync-schemas` (§6.9).
+generated from the same Zod, by the extension repo (§6.9).
 
 ### 3.3 `vscode-agentic-debug` — the VS Code front-end
 
@@ -1700,8 +1700,9 @@ adapter (§5.3, [Wiring status](#wiring-status)).
 
 **18 Language Model Tools** declared in `package.json` → `contributes.languageModelTools` and
 registered in `lm-tools.ts`. Both the `inputSchema` and the `modelDescription` of every tool with a
-core counterpart are **generated** by `npm run sync-schemas` and verified by `npm run check-schemas`
-— edit the Zod schema or the `debug*Description` constant, never the manifest:
+core counterpart are **generated** from the core's exported Zod schemas (`tools/schemas.js`) and
+description constants (`tools/descriptions.js`). The extension repo owns that sync and its drift
+check — edit the Zod schema or the `debug*Description` constant, never the manifest:
 
 | LM tool | Backed by |
 |---|---|
@@ -1722,9 +1723,8 @@ Four core tools are **not** exposed in-editor: `set_function_breakpoints`, `set_
 > only in the extension's `package.json` tool schema, and deliberately so: `SessionFactory.buildConfig`
 > consumes them to assemble the `Config` *before* the core handler runs, while `handleDebugLaunch`
 > forwards only `stopOnEntry` and `port` to `session.launch()`. Adding them to `debugLaunchSchema`
-> would make the MCP server accept and silently ignore them. `scripts/tool-map.ts` declares them in
-> `extensionOnlyProperties`, so `check-schemas` tolerates them and `sync-schemas` preserves them
-> rather than deleting them.
+> would make the MCP server accept and silently ignore them. The extension's schema sync must
+> therefore tolerate and preserve them rather than delete them.
 
 ---
 
