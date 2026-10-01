@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Lint, format, typecheck, audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run format:check
+      - run: npm run lint
+      - run: npm run typecheck
+      - name: Plan schema in sync
+        run: npm run check-plan-schema
+      - name: Audit runtime dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+  test:
+    name: Build & unit tests (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+
+  e2e:
+    name: E2E (real PHP + Xdebug)
+    runs-on: ubuntu-latest
+    needs: [quality, test]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      # Same PHP minor as the ddev image the goldens were recorded with (e2e/php.sh).
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: xdebug
+          coverage: xdebug
+          tools: none
+      # e2e/plans.e2e.test.ts skips the whole suite when Xdebug is missing; fail loudly instead.
+      - name: Xdebug is loaded
+        run: php -m | grep -i '^xdebug$'
+      - run: npm ci
+      - run: npm run build
+      - run: npm run test:e2e

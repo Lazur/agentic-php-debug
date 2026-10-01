@@ -1,7 +1,11 @@
 {
-  "name": "ts-php-debug-mcp",
+  "name": "agentic-php-debug",
   "version": "0.1.0",
   "description": "TypeScript MCP server for PHP/Xdebug debugging via vscode-php-debug DAP adapter",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Lazur/agentic-php-debug.git"
+  },
   "type": "module",
   "main": "dist/index.js",
   "exports": {
@@ -59,7 +63,12 @@
     "sync-schemas": "tsx scripts/sync-schemas.ts",
     "emit-plan-schema": "tsx scripts/emit-plan-schema.ts",
     "check-plan-schema": "tsx scripts/emit-plan-schema.ts --check",
-    "test:e2e": "vitest --run --config vitest.e2e.config.ts"
+    "test:e2e": "vitest --run --config vitest.e2e.config.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "license": "MIT",
   "dependencies": {
@@ -68,12 +77,18 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^25.2.3",
     "esbuild": "^0.27.7",
+    "eslint": "^10.11.0",
+    "eslint-config-prettier": "^10.1.8",
     "fast-check": "^4.5.3",
+    "globals": "^17.13.0",
     "php-debug": "github:xdebug/vscode-php-debug#270fb6cfdffb7796cc6c033e1a21fbba3b56dbfa",
+    "prettier": "^3.9.9",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
+    "typescript-eslint": "^8.71.0",
     "vitest": "^4.0.18"
   },
   "bin": {
