@@ -1,0 +1,52 @@
+# Dependencies
+node_modules/
+
+# Build output (tsc + bundled adapter in dist/adapter/; rebuilt by `npm run build`)
+dist/
+*.tsbuildinfo
+
+# Test / coverage
+coverage/
+.vitest/
+*.lcov
+
+# Logs
+*.log
+npm-debug.log*
+logs/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Machine-local MCP and debugger configs (mcp.example.json and config.php.*.json are the templates)
+.mcp.json
+inspector.mcp.json
+.php-debug-mcp.json
+config.php.*.local.json
+
+# Debug plan runs (--runs-dir / php-debug-plan --out)
+.php-debug-plan/
+plan-run/
+
+# Claude Code / agent tooling: keep installed skills, ignore local state
+.claude/settings.local.json
+.claude/worktrees/
+.specstory/
+.codegraph/
+.zvec-grep/
+.claude/
+.agents/
+
+# Editors
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+.idea/
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db

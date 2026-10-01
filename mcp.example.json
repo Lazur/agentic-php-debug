@@ -1,0 +1,28 @@
+{
+  "mcpServers": {
+    "php-debug": {
+      "command": "node",
+      "args": [
+        "/absolute/path/to/ts-php-debug-mcp/dist/index.js",
+        "--config",
+        "/absolute/path/to/ts-php-debug-mcp/config.php.local.json"
+      ]
+    },
+    "php-debug-plan": {
+      "command": "node",
+      "args": [
+        "/absolute/path/to/ts-php-debug-mcp/dist/index.js",
+        "--config",
+        "/absolute/path/to/ts-php-debug-mcp/config.php.local.json",
+        "--mode",
+        "plan",
+        "--allow-command-trigger",
+        "--runs-dir",
+        "/absolute/path/to/your-php-project/.php-debug-plan/runs"
+      ]
+    },
+    "php-debug-http": {
+      "url": "http://127.0.0.1:3000/mcp"
+    }
+  }
+}

@@ -1,0 +1,420 @@
+{
+  "breakpoints": [
+    {
+      "file": "${root}/e2e/fixtures/cart.php",
+      "kind": "line",
+      "line": 26,
+      "probe": "line-total",
+      "verification": "pending_connection"
+    },
+    {
+      "file": "${root}/e2e/fixtures/cart.php",
+      "kind": "line",
+      "line": 17,
+      "probe": "sum",
+      "verification": "pending_connection"
+    }
+  ],
+  "errors": [],
+  "expectations": [
+    {
+      "expect": {
+        "hits": 3,
+        "probe": "line-total"
+      },
+      "pass": true
+    },
+    {
+      "expect": {
+        "hits": 3,
+        "probe": "sum"
+      },
+      "pass": true
+    },
+    {
+      "expect": {
+        "sequence": [
+          "line-total",
+          "sum",
+          "line-total",
+          "sum",
+          "line-total",
+          "sum"
+        ]
+      },
+      "pass": true
+    },
+    {
+      "expect": {
+        "equals": "0.67",
+        "expr": "$line",
+        "hit": 3,
+        "probe": "sum"
+      },
+      "pass": true
+    },
+    {
+      "expect": {
+        "outcome": "completed"
+      },
+      "pass": true
+    },
+    {
+      "expect": {
+        "trigger": {
+          "exitCode": 0
+        }
+      },
+      "pass": true
+    }
+  ],
+  "outcome": "completed",
+  "plan": {
+    "hash": "aa97490f9eda17055279136b4a5285448b8110afae3364684033ca16669197d6",
+    "name": "cart-rounding",
+    "version": 1
+  },
+  "predictions": [
+    {
+      "hypothesis": "H1",
+      "verdict": "refuted"
+    },
+    {
+      "hypothesis": "H2",
+      "verdict": "supported"
+    }
+  ],
+  "probes": {
+    "line-total": {
+      "captured": 3,
+      "hits": 3,
+      "kind": "line"
+    },
+    "sum": {
+      "captured": 3,
+      "hits": 3,
+      "kind": "line"
+    }
+  },
+  "reportVersion": 1,
+  "stops": [
+    {
+      "captured": true,
+      "evaluate": {
+        "$price": {
+          "value": "1.115"
+        },
+        "$qty": {
+          "value": "3"
+        },
+        "$raw": {
+          "value": "3.3449999999999998"
+        },
+        "$rounded": {
+          "value": "3.34"
+        }
+      },
+      "frames": [
+        {
+          "file": "${root}/e2e/fixtures/cart.php",
+          "index": 0,
+          "line": 26,
+          "name": "Cart->lineTotal"
+        },
+        {
+          "file": "${root}/e2e/fixtures/cart.php",
+          "index": 1,
+          "line": 16,
+          "name": "Cart->total"
+        },
+        {
+          "file": "${root}/e2e/fixtures/cart.php",
+          "index": 2,
+          "line": 31,
+          "name": "{main}"
+        }
+      ],
+      "hit": 1,
+      "kind": "line",
+      "location": {
+        "file": "${root}/e2e/fixtures/cart.php",
+        "function": "Cart->lineTotal",
+        "line": 26
+      },
+      "probe": "line-total",
+      "reason": "breakpoint",
+      "seq": 1,
+      "thread": "T1"
+    },
+    {
+      "captured": true,
+      "evaluate": {
+        "$line": {
+          "value": "3.34"
+        },
+        "$total": {
+          "value": "0"
+        }
+      },
+      "frames": [
+        {
+          "file": "${root}/e2e/fixtures/cart.php",
+          "index": 0,
+          "line": 17,
+          "name": "Cart->total"
+        }
+      ],
+      "hit": 1,
+      "kind": "line",
+      "locals": {
+        "Locals": {
+          "variables": {
+            "$line": {
+              "type": "float",
+              "value": "3.34"
+            },
+            "$price": {
+              "type": "float",
+              "value": "1.115"
+            },
+            "$qty": {
+              "type": "int",
+              "value": "3"
+            },
+            "$this": {
+              "type": "object",
+              "value": "Cart"
+            },
+            "$total": {
+              "type": "float",
+              "value": "0"
+            }
+          }
+        }
+      },
+      "location": {
+        "file": "${root}/e2e/fixtures/cart.php",
+        "function": "Cart->total",
+        "line": 17
+      },
+      "probe": "sum",
+      "reason": "breakpoint",
+      "seq": 2,
+      "thread": "T1"
+    },
+    {
+      "captured": true,
+      "evaluate": {
+        "$price": {
+          "value": "2.5"
+        },
+        "$qty": {
+          "value": "1"
+        },
+        "$raw": {
+          "value": "2.5"
+        },
+        "$rounded": {
+          "value": "2.5"
+        }
+      },
+      "frames": [
+        {
+          "file": "${root}/e2e/fixtures/cart.php",
+          "index": 0,
+          "line": 26,
+          "name": "Cart->lineTotal"
+        },
+        {
+          "file": "${root}/e2e/fixtures/cart.php",
+          "index": 1,
+          "line": 16,
+          "name": "Cart->total"
+        },
+        {
+          "file": "${root}/e2e/fixtures/cart.php",
+          "index": 2,
+          "line": 31,
+          "name": "{main}"
+        }
+      ],
+      "hit": 2,
+      "kind": "line",
+      "location": {
+        "file": "${root}/e2e/fixtures/cart.php",
+        "function": "Cart->lineTotal",
+        "line": 26
+      },
+      "probe": "line-total",
+      "reason": "breakpoint",
+      "seq": 3,
+      "thread": "T1"
+    },
+    {
+      "captured": true,
+      "evaluate": {
+        "$line": {
+          "value": "2.5"
+        },
+        "$total": {
+          "value": "3.34"
+        }
+      },
+      "frames": [
+        {
+          "file": "${root}/e2e/fixtures/cart.php",
+          "index": 0,
+          "line": 17,
+          "name": "Cart->total"
+        }
+      ],
+      "hit": 2,
+      "kind": "line",
+      "locals": {
+        "Locals": {
+          "variables": {
+            "$line": {
+              "type": "float",
+              "value": "2.5"
+            },
+            "$price": {
+              "type": "float",
+              "value": "2.5"
+            },
+            "$qty": {
+              "type": "int",
+              "value": "1"
+            },
+            "$this": {
+              "type": "object",
+              "value": "Cart"
+            },
+            "$total": {
+              "type": "float",
+              "value": "3.34"
+            }
+          }
+        }
+      },
+      "location": {
+        "file": "${root}/e2e/fixtures/cart.php",
+        "function": "Cart->total",
+        "line": 17
+      },
+      "probe": "sum",
+      "reason": "breakpoint",
+      "seq": 4,
+      "thread": "T1"
+    },
+    {
+      "captured": true,
+      "evaluate": {
+        "$price": {
+          "value": "0.335"
+        },
+        "$qty": {
+          "value": "2"
+        },
+        "$raw": {
+          "value": "0.67"
+        },
+        "$rounded": {
+          "value": "0.67"
+        }
+      },
+      "frames": [
+        {
+          "file": "${root}/e2e/fixtures/cart.php",
+          "index": 0,
+          "line": 26,
+          "name": "Cart->lineTotal"
+        },
+        {
+          "file": "${root}/e2e/fixtures/cart.php",
+          "index": 1,
+          "line": 16,
+          "name": "Cart->total"
+        },
+        {
+          "file": "${root}/e2e/fixtures/cart.php",
+          "index": 2,
+          "line": 31,
+          "name": "{main}"
+        }
+      ],
+      "hit": 3,
+      "kind": "line",
+      "location": {
+        "file": "${root}/e2e/fixtures/cart.php",
+        "function": "Cart->lineTotal",
+        "line": 26
+      },
+      "probe": "line-total",
+      "reason": "breakpoint",
+      "seq": 5,
+      "thread": "T1"
+    },
+    {
+      "captured": true,
+      "evaluate": {
+        "$line": {
+          "value": "0.67"
+        },
+        "$total": {
+          "value": "5.84"
+        }
+      },
+      "frames": [
+        {
+          "file": "${root}/e2e/fixtures/cart.php",
+          "index": 0,
+          "line": 17,
+          "name": "Cart->total"
+        }
+      ],
+      "hit": 3,
+      "kind": "line",
+      "locals": {
+        "Locals": {
+          "variables": {
+            "$line": {
+              "type": "float",
+              "value": "0.67"
+            },
+            "$price": {
+              "type": "float",
+              "value": "0.335"
+            },
+            "$qty": {
+              "type": "int",
+              "value": "2"
+            },
+            "$this": {
+              "type": "object",
+              "value": "Cart"
+            },
+            "$total": {
+              "type": "float",
+              "value": "5.84"
+            }
+          }
+        }
+      },
+      "location": {
+        "file": "${root}/e2e/fixtures/cart.php",
+        "function": "Cart->total",
+        "line": 17
+      },
+      "probe": "sum",
+      "reason": "breakpoint",
+      "seq": 6,
+      "thread": "T1"
+    }
+  ],
+  "trigger": {
+    "exitCode": 0,
+    "kind": "command",
+    "signal": null
+  },
+  "unmatchedStops": 0
+}

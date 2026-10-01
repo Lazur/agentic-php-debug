@@ -1,0 +1,242 @@
+{
+  "breakpoints": [
+    {
+      "file": "${root}/e2e/fixtures/exception.php",
+      "kind": "line",
+      "line": 23,
+      "probe": "row",
+      "verification": "pending_connection"
+    },
+    {
+      "filters": [
+        "Exception"
+      ],
+      "kind": "exception",
+      "probe": "exception",
+      "verification": "pending_connection"
+    }
+  ],
+  "errors": [],
+  "expectations": [
+    {
+      "expect": {
+        "hits": 3,
+        "probe": "row"
+      },
+      "pass": true
+    },
+    {
+      "expect": {
+        "equals": "\"n/a\"",
+        "expr": "$row",
+        "hit": 3,
+        "probe": "row"
+      },
+      "pass": true
+    },
+    {
+      "expect": {
+        "outcome": "completed"
+      },
+      "pass": true
+    },
+    {
+      "expect": {
+        "trigger": {
+          "exitCode": 0
+        }
+      },
+      "pass": true
+    }
+  ],
+  "outcome": "completed",
+  "plan": {
+    "hash": "be85af5ae49651de20488b395396905d6043588e8ac4330313ca18c981fc0627",
+    "name": "wrapped-exception",
+    "version": 1
+  },
+  "predictions": [],
+  "probes": {
+    "exception": {
+      "captured": 2,
+      "hits": 2,
+      "kind": "exception"
+    },
+    "row": {
+      "captured": 3,
+      "hits": 3,
+      "kind": "line"
+    }
+  },
+  "reportVersion": 1,
+  "stops": [
+    {
+      "captured": true,
+      "evaluate": {
+        "$i": {
+          "value": "0"
+        },
+        "$row": {
+          "value": "\"1.50\""
+        }
+      },
+      "frames": [
+        {
+          "file": "${root}/e2e/fixtures/exception.php",
+          "index": 0,
+          "line": 23,
+          "name": "load"
+        }
+      ],
+      "hit": 1,
+      "kind": "line",
+      "location": {
+        "file": "${root}/e2e/fixtures/exception.php",
+        "function": "load",
+        "line": 23
+      },
+      "probe": "row",
+      "reason": "breakpoint",
+      "seq": 1,
+      "thread": "T1"
+    },
+    {
+      "captured": true,
+      "evaluate": {
+        "$i": {
+          "value": "1"
+        },
+        "$row": {
+          "value": "\"2.00\""
+        }
+      },
+      "frames": [
+        {
+          "file": "${root}/e2e/fixtures/exception.php",
+          "index": 0,
+          "line": 23,
+          "name": "load"
+        }
+      ],
+      "hit": 2,
+      "kind": "line",
+      "location": {
+        "file": "${root}/e2e/fixtures/exception.php",
+        "function": "load",
+        "line": 23
+      },
+      "probe": "row",
+      "reason": "breakpoint",
+      "seq": 2,
+      "thread": "T1"
+    },
+    {
+      "captured": true,
+      "evaluate": {
+        "$i": {
+          "value": "2"
+        },
+        "$row": {
+          "value": "\"n/a\""
+        }
+      },
+      "frames": [
+        {
+          "file": "${root}/e2e/fixtures/exception.php",
+          "index": 0,
+          "line": 23,
+          "name": "load"
+        }
+      ],
+      "hit": 3,
+      "kind": "line",
+      "location": {
+        "file": "${root}/e2e/fixtures/exception.php",
+        "function": "load",
+        "line": 23
+      },
+      "probe": "row",
+      "reason": "breakpoint",
+      "seq": 3,
+      "thread": "T1"
+    },
+    {
+      "captured": true,
+      "exception": {
+        "breakMode": "always",
+        "description": "Not a price: n/a",
+        "exceptionId": "PriceException"
+      },
+      "frames": [
+        {
+          "file": "${root}/e2e/fixtures/exception.php",
+          "index": 0,
+          "line": 12,
+          "name": "parsePrice"
+        },
+        {
+          "file": "${root}/e2e/fixtures/exception.php",
+          "index": 1,
+          "line": 23,
+          "name": "load"
+        },
+        {
+          "file": "${root}/e2e/fixtures/exception.php",
+          "index": 2,
+          "line": 32,
+          "name": "{main}"
+        }
+      ],
+      "hit": 1,
+      "kind": "exception",
+      "location": {
+        "file": "${root}/e2e/fixtures/exception.php",
+        "function": "parsePrice",
+        "line": 12
+      },
+      "probe": "exception",
+      "reason": "exception",
+      "seq": 4,
+      "thread": "T1"
+    },
+    {
+      "captured": true,
+      "exception": {
+        "breakMode": "always",
+        "description": "Row 2 is invalid",
+        "exceptionId": "LogicException"
+      },
+      "frames": [
+        {
+          "file": "${root}/e2e/fixtures/exception.php",
+          "index": 0,
+          "line": 25,
+          "name": "load"
+        },
+        {
+          "file": "${root}/e2e/fixtures/exception.php",
+          "index": 1,
+          "line": 32,
+          "name": "{main}"
+        }
+      ],
+      "hit": 2,
+      "kind": "exception",
+      "location": {
+        "file": "${root}/e2e/fixtures/exception.php",
+        "function": "load",
+        "line": 25
+      },
+      "probe": "exception",
+      "reason": "exception",
+      "seq": 5,
+      "thread": "T1"
+    }
+  ],
+  "trigger": {
+    "exitCode": 0,
+    "kind": "command",
+    "signal": null
+  },
+  "unmatchedStops": 0
+}

@@ -1,0 +1,8 @@
+{
+  "port": 9003,
+  "stopOnEntry": false,
+  "pathMappings": {
+    "/var/www/html/web": "/path/to/your/project/web",
+    "/var/www/html/vendor": "/path/to/your/project/vendor"
+  }
+}

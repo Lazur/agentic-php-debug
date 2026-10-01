@@ -1,0 +1,6 @@
+{
+  "adapterPath": "/usr/local/bin/phpDebug.js",
+  "port": 9003,
+  "stopOnEntry": false,
+  "pathMappings": {}
+}

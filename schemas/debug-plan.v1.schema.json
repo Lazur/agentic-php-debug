@@ -1,0 +1,893 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "version": {
+      "type": "number",
+      "const": 1
+    },
+    "name": {
+      "type": "string",
+      "maxLength": 80,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+      "description": "Plan name; names the run directory and the golden file"
+    },
+    "goal": {
+      "description": "The question this run answers; carried into the report for analysis",
+      "type": "string"
+    },
+    "hypotheses": {
+      "description": "Competing explanations, each with predictions the run can confirm or refute",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 64,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$"
+          },
+          "basis": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Evidence behind the hypothesis (code read, log line, bug report). Write this first."
+          },
+          "claim": {
+            "type": "string",
+            "minLength": 1,
+            "description": "What you believe is wrong"
+          },
+          "predicts": {
+            "description": "Observations that hold if the claim is true; the runner checks each one",
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "probe": {
+                      "type": "string",
+                      "maxLength": 64,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$"
+                    },
+                    "hits": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991,
+                      "description": "Exact number of times the probe stopped"
+                    }
+                  },
+                  "required": [
+                    "probe",
+                    "hits"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "probe": {
+                      "type": "string",
+                      "maxLength": 64,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$"
+                    },
+                    "hit": {
+                      "description": "Which captured hit (1-based). Omitted: the assertion must hold at every captured hit.",
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    },
+                    "expr": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Expression whose value is checked; it is added to the probe capture automatically"
+                    },
+                    "equals": {
+                      "description": "Exact value as the debugger renders it, e.g. \"3.35\", \"true\", \"\\\"abc\\\"\" (strings in double quotes)",
+                      "type": "string"
+                    },
+                    "matches": {
+                      "description": "JavaScript regular expression the rendered value must match",
+                      "type": "string"
+                    },
+                    "type": {
+                      "description": "Expected PHP type as reported, e.g. \"float\", \"int\", \"string\"",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "probe",
+                    "expr"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          }
+        },
+        "required": [
+          "id",
+          "basis",
+          "claim"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "root": {
+      "description": "Base directory for relative paths (default: the plan file directory, or the working directory)",
+      "type": "string"
+    },
+    "session": {
+      "type": "object",
+      "properties": {
+        "port": {
+          "description": "Xdebug listen port (default: server config)",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "stopOnEntry": {
+          "description": "Stop on the first line of each connection (default false); the runner records and continues it",
+          "type": "boolean"
+        },
+        "hostname": {
+          "description": "Listen host. Honoured where the session is built per run.",
+          "type": "string"
+        },
+        "pathMappings": {
+          "description": "Server path → local path. Honoured where the session is built per run; a running MCP server keeps its own.",
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "backendMode": {
+          "description": "VS Code only: drive the editor debug UI (\"ui\", default) or a hidden adapter (\"headless\")",
+          "type": "string",
+          "enum": [
+            "ui",
+            "headless"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "trigger": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "command"
+            },
+            "argv": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Program and arguments, spawned without a shell, e.g. [\"php\", \"bin/console\", \"cart:total\"]"
+            },
+            "cwd": {
+              "description": "Working directory, relative to the plan root (default: the root)",
+              "type": "string"
+            },
+            "env": {
+              "description": "Extra environment variables",
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "xdebugEnv": {
+              "description": "Inject XDEBUG_MODE, XDEBUG_TRIGGER and XDEBUG_CONFIG so a local PHP process connects to this session (default true). Set false when the command runs PHP elsewhere, e.g. inside a container.",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "kind",
+            "argv"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "http"
+            },
+            "url": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Request URL; \"${env:NAME}\" is interpolated"
+            },
+            "method": {
+              "description": "HTTP method (default GET)",
+              "type": "string",
+              "minLength": 1
+            },
+            "headers": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "body": {
+              "type": "string"
+            },
+            "xdebugCookie": {
+              "description": "Send an XDEBUG_SESSION cookie so Xdebug starts a session (default true)",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "kind",
+            "url"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "manual"
+            },
+            "instructions": {
+              "description": "Shown to the person who triggers the request. Manual runs are not reproducible.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        }
+      ],
+      "description": "How PHP is started once breakpoints are in place. The run owns the trigger, so re-running the plan reproduces the execution."
+    },
+    "probes": {
+      "description": "Line breakpoints with what to capture at each hit. Each file is sent once, before PHP starts.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 64,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "description": "Unique probe id, referenced by expect/predicts/sequence"
+          },
+          "file": {
+            "type": "string",
+            "minLength": 1,
+            "description": "LOCAL path of the PHP file, relative to the plan root or absolute. Path mappings are applied by the server."
+          },
+          "line": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991,
+            "description": "1-based line of an EXECUTABLE statement. A breakpoint on a blank line, a comment, or a lone brace is accepted by the adapter and then never hits."
+          },
+          "condition": {
+            "description": "PHP condition; the probe only stops when it is truthy",
+            "type": "string",
+            "minLength": 1
+          },
+          "hitCondition": {
+            "description": "Xdebug hit condition, e.g. \">= 3\" or \"% 10\"",
+            "type": "string",
+            "minLength": 1
+          },
+          "tests": {
+            "description": "Ids of the hypotheses whose outcome this probe discriminates",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$"
+            }
+          },
+          "capture": {
+            "description": "What to record at each hit (default: the stopped frame only)",
+            "type": "object",
+            "properties": {
+              "stack": {
+                "description": "How many stack frames to record (default 1: just the stopped frame)",
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              },
+              "evaluate": {
+                "description": "Expressions to evaluate at every captured hit. Must be side-effect free — they run inside the live request. Prefer this over locals: one targeted expression is cheaper than a variable dump. An object renders as its class name; evaluate a property, or var_export($x, true), for its contents.",
+                "maxItems": 50,
+                "type": "array",
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "PHP expression evaluated in the top frame, e.g. \"$total\" or \"count($items)\""
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "expr": {
+                          "type": "string",
+                          "minLength": 1,
+                          "description": "PHP expression to evaluate"
+                        },
+                        "frame": {
+                          "description": "Stack frame index to evaluate in: 0 = the stopped frame (default), 1 = its caller, ...",
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 99
+                        },
+                        "volatile": {
+                          "description": "The value differs between runs (time, random, object ids). Captured, but excluded from golden comparison.",
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "expr"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              },
+              "locals": {
+                "description": "Dump variables of the stopped frame. Omit or false to skip (the default).",
+                "anyOf": [
+                  {
+                    "type": "boolean",
+                    "const": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "depth": {
+                        "description": "How deep to expand arrays/objects (0 = names and scalar values only; default 1)",
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 4
+                      },
+                      "maxItems": {
+                        "description": "Maximum variables recorded per scope or container (default 40)",
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 500
+                      },
+                      "scopes": {
+                        "description": "Scope names to dump (default [\"Locals\"]), e.g. [\"Locals\", \"Superglobals\"]. See redact.scopes.",
+                        "maxItems": 5,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "exception": {
+                "description": "Also record debug_exception_info. Automatic for exception stops.",
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          },
+          "maxCaptures": {
+            "description": "Capture at most this many hits (default 10). Later hits are still counted, then continued at once.",
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000
+          }
+        },
+        "required": [
+          "id",
+          "file",
+          "line"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "exceptions": {
+      "description": "Break when an exception is thrown",
+      "type": "object",
+      "properties": {
+        "id": {
+          "description": "Probe id for exception stops (default \"exception\")",
+          "type": "string",
+          "maxLength": 64,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$"
+        },
+        "filters": {
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Exception filters, as the adapter offers them: \"Exception\" (and its subclasses), \"Error\", \"Warning\", \"Notice\", \"Deprecated\", or \"*\" for everything"
+        },
+        "tests": {
+          "description": "Ids of the hypotheses whose outcome this probe discriminates",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 64,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$"
+          }
+        },
+        "capture": {
+          "description": "What to record at each hit (default: the stopped frame only)",
+          "type": "object",
+          "properties": {
+            "stack": {
+              "description": "How many stack frames to record (default 1: just the stopped frame)",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "evaluate": {
+              "description": "Expressions to evaluate at every captured hit. Must be side-effect free — they run inside the live request. Prefer this over locals: one targeted expression is cheaper than a variable dump. An object renders as its class name; evaluate a property, or var_export($x, true), for its contents.",
+              "maxItems": 50,
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "PHP expression evaluated in the top frame, e.g. \"$total\" or \"count($items)\""
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "expr": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "PHP expression to evaluate"
+                      },
+                      "frame": {
+                        "description": "Stack frame index to evaluate in: 0 = the stopped frame (default), 1 = its caller, ...",
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 99
+                      },
+                      "volatile": {
+                        "description": "The value differs between runs (time, random, object ids). Captured, but excluded from golden comparison.",
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "expr"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            },
+            "locals": {
+              "description": "Dump variables of the stopped frame. Omit or false to skip (the default).",
+              "anyOf": [
+                {
+                  "type": "boolean",
+                  "const": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "depth": {
+                      "description": "How deep to expand arrays/objects (0 = names and scalar values only; default 1)",
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 4
+                    },
+                    "maxItems": {
+                      "description": "Maximum variables recorded per scope or container (default 40)",
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 500
+                    },
+                    "scopes": {
+                      "description": "Scope names to dump (default [\"Locals\"]), e.g. [\"Locals\", \"Superglobals\"]. See redact.scopes.",
+                      "maxItems": 5,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "exception": {
+              "description": "Also record debug_exception_info. Automatic for exception stops.",
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "maxCaptures": {
+          "description": "Capture at most this many hits (default 10). Later hits are still counted, then continued at once.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        }
+      },
+      "required": [
+        "filters"
+      ],
+      "additionalProperties": false
+    },
+    "functions": {
+      "description": "Break on entry to named functions",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 64,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Function or method to break on at entry, e.g. \"App\\\\Cart::total\" or \"array_sum\""
+          },
+          "condition": {
+            "type": "string",
+            "minLength": 1
+          },
+          "hitCondition": {
+            "type": "string",
+            "minLength": 1
+          },
+          "tests": {
+            "description": "Ids of the hypotheses whose outcome this probe discriminates",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$"
+            }
+          },
+          "capture": {
+            "description": "What to record at each hit (default: the stopped frame only)",
+            "type": "object",
+            "properties": {
+              "stack": {
+                "description": "How many stack frames to record (default 1: just the stopped frame)",
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              },
+              "evaluate": {
+                "description": "Expressions to evaluate at every captured hit. Must be side-effect free — they run inside the live request. Prefer this over locals: one targeted expression is cheaper than a variable dump. An object renders as its class name; evaluate a property, or var_export($x, true), for its contents.",
+                "maxItems": 50,
+                "type": "array",
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "PHP expression evaluated in the top frame, e.g. \"$total\" or \"count($items)\""
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "expr": {
+                          "type": "string",
+                          "minLength": 1,
+                          "description": "PHP expression to evaluate"
+                        },
+                        "frame": {
+                          "description": "Stack frame index to evaluate in: 0 = the stopped frame (default), 1 = its caller, ...",
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 99
+                        },
+                        "volatile": {
+                          "description": "The value differs between runs (time, random, object ids). Captured, but excluded from golden comparison.",
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "expr"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              },
+              "locals": {
+                "description": "Dump variables of the stopped frame. Omit or false to skip (the default).",
+                "anyOf": [
+                  {
+                    "type": "boolean",
+                    "const": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "depth": {
+                        "description": "How deep to expand arrays/objects (0 = names and scalar values only; default 1)",
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 4
+                      },
+                      "maxItems": {
+                        "description": "Maximum variables recorded per scope or container (default 40)",
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 500
+                      },
+                      "scopes": {
+                        "description": "Scope names to dump (default [\"Locals\"]), e.g. [\"Locals\", \"Superglobals\"]. See redact.scopes.",
+                        "maxItems": 5,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "exception": {
+                "description": "Also record debug_exception_info. Automatic for exception stops.",
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          },
+          "maxCaptures": {
+            "description": "Capture at most this many hits (default 10). Later hits are still counted, then continued at once.",
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "limits": {
+      "type": "object",
+      "properties": {
+        "timeoutMs": {
+          "description": "Whole-run deadline (default 120000)",
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 3600000
+        },
+        "waitMs": {
+          "description": "Longest single debug_wait (default 10000)",
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 600000
+        },
+        "connectTimeoutMs": {
+          "description": "Give up when Xdebug has not connected this long after the trigger started (default 30000)",
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 3600000
+        },
+        "idleMs": {
+          "description": "Quiet time after the trigger finished and every connection closed before the run ends (default 1500)",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 600000
+        },
+        "maxStops": {
+          "description": "Stop the run after this many stops (default 200)",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10000
+        },
+        "evaluateTimeoutMs": {
+          "description": "Per-expression evaluate timeout (default 5000)",
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 600000
+        }
+      },
+      "additionalProperties": false
+    },
+    "onUnmatchedStop": {
+      "description": "A stop no probe explains (e.g. a gutter breakpoint): \"record\" its location and continue (default), \"ignore\" it silently, or \"abort\" the run",
+      "type": "string",
+      "enum": [
+        "record",
+        "ignore",
+        "abort"
+      ]
+    },
+    "redact": {
+      "type": "object",
+      "properties": {
+        "names": {
+          "description": "Case-insensitive name fragments whose values are replaced by \"[redacted]\". Replaces the default list.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "scopes": {
+          "description": "Scopes dumped with names and types only, values replaced by \"[redacted]\" (default [\"Superglobals\"]). Evaluate one expression, e.g. \"$_GET['id']\", to read a single value.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "expect": {
+      "description": "Assertions checked after the run; they make the plan a regression test",
+      "type": "array",
+      "items": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "probe": {
+                "type": "string",
+                "maxLength": 64,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$"
+              },
+              "hits": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "Exact number of times the probe stopped"
+              }
+            },
+            "required": [
+              "probe",
+              "hits"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "probe": {
+                "type": "string",
+                "maxLength": 64,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$"
+              },
+              "hit": {
+                "description": "Which captured hit (1-based). Omitted: the assertion must hold at every captured hit.",
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              },
+              "expr": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Expression whose value is checked; it is added to the probe capture automatically"
+              },
+              "equals": {
+                "description": "Exact value as the debugger renders it, e.g. \"3.35\", \"true\", \"\\\"abc\\\"\" (strings in double quotes)",
+                "type": "string"
+              },
+              "matches": {
+                "description": "JavaScript regular expression the rendered value must match",
+                "type": "string"
+              },
+              "type": {
+                "description": "Expected PHP type as reported, e.g. \"float\", \"int\", \"string\"",
+                "type": "string"
+              }
+            },
+            "required": [
+              "probe",
+              "expr"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "sequence": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "maxLength": 64,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$"
+                },
+                "description": "Exact order of matched stops by probe id (unmatched and entry stops excluded)"
+              }
+            },
+            "required": [
+              "sequence"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "outcome": {
+                "type": "string",
+                "enum": [
+                  "completed",
+                  "no_connection",
+                  "max_stops",
+                  "timeout",
+                  "cancelled",
+                  "failed"
+                ]
+              }
+            },
+            "required": [
+              "outcome"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "trigger": {
+                "type": "object",
+                "properties": {
+                  "exitCode": {
+                    "description": "Exit code of a command trigger",
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "status": {
+                    "description": "HTTP status of an http trigger",
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "trigger"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      }
+    }
+  },
+  "required": [
+    "version",
+    "name",
+    "trigger"
+  ],
+  "additionalProperties": false,
+  "$id": "https://github.com/Lazur/php-debug-mcp/schemas/debug-plan.v1.schema.json",
+  "title": "PHP debug plan (v1)"
+}

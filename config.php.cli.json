@@ -1,0 +1,7 @@
+{
+  "port": 9003,
+  "stopOnEntry": false,
+  "program": "/Users/dev/myproject/bin/console",
+  "cwd": "/Users/dev/myproject",
+  "pathMappings": {}
+}

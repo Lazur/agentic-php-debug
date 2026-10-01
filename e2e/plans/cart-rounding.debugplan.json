@@ -1,0 +1,47 @@
+{
+  "$schema": "../../schemas/debug-plan.v1.schema.json",
+  "version": 1,
+  "name": "cart-rounding",
+  "goal": "Is 1.115 × 3 rounded up to 3.35 or down to 3.34 before it is summed?",
+  "root": "../..",
+  "hypotheses": [
+    {
+      "id": "H1",
+      "basis": "lineTotal() rounds each line to 2 decimals with round(); 1.115 × 3 is 3.345 on paper",
+      "claim": "the first line total is rounded half up to 3.35",
+      "predicts": [{ "probe": "line-total", "hit": 1, "expr": "$rounded", "equals": "3.35" }]
+    },
+    {
+      "id": "H2",
+      "basis": "in binary floating point 1.115 × 3 is 3.3449999…, just below the midpoint",
+      "claim": "the first line total is rounded down to 3.34",
+      "predicts": [{ "probe": "line-total", "hit": 1, "expr": "$rounded", "equals": "3.34" }]
+    }
+  ],
+  "session": { "port": 9013, "pathMappings": { "/app": "${root}" } },
+  "trigger": { "kind": "command", "argv": ["sh", "e2e/php.sh", "e2e/fixtures/cart.php"] },
+  "probes": [
+    {
+      "id": "line-total",
+      "file": "e2e/fixtures/cart.php",
+      "line": 26,
+      "tests": ["H1", "H2"],
+      "capture": { "stack": 3, "evaluate": ["$price", "$qty", "$raw", "$rounded"] }
+    },
+    {
+      "id": "sum",
+      "file": "e2e/fixtures/cart.php",
+      "line": 17,
+      "capture": { "evaluate": ["$total", "$line"], "locals": { "depth": 0 } }
+    }
+  ],
+  "limits": { "timeoutMs": 90000, "connectTimeoutMs": 60000, "idleMs": 500 },
+  "expect": [
+    { "probe": "line-total", "hits": 3 },
+    { "probe": "sum", "hits": 3 },
+    { "sequence": ["line-total", "sum", "line-total", "sum", "line-total", "sum"] },
+    { "probe": "sum", "hit": 3, "expr": "$line", "equals": "0.67" },
+    { "outcome": "completed" },
+    { "trigger": { "exitCode": 0 } }
+  ]
+}

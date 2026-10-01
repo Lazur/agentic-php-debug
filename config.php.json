@@ -1,0 +1,7 @@
+{
+  "port": 9003,
+  "stopOnEntry": false,
+  "pathMappings": {
+    "/var/www/html": "/Users/dev/myproject"
+  }
+}

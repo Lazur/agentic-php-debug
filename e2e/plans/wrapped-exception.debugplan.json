@@ -1,0 +1,28 @@
+{
+  "$schema": "../../schemas/debug-plan.v1.schema.json",
+  "version": 1,
+  "name": "wrapped-exception",
+  "goal": "Which row fails to parse, and what does the wrapper hide?",
+  "root": "../..",
+  "session": { "port": 9013, "pathMappings": { "/app": "${root}" } },
+  "trigger": { "kind": "command", "argv": ["sh", "e2e/php.sh", "e2e/fixtures/exception.php"] },
+  "probes": [
+    {
+      "id": "row",
+      "file": "e2e/fixtures/exception.php",
+      "line": 23,
+      "capture": { "evaluate": ["$i", "$row"] }
+    }
+  ],
+  "exceptions": {
+    "filters": ["Exception"],
+    "capture": { "stack": 3 }
+  },
+  "limits": { "timeoutMs": 90000, "connectTimeoutMs": 60000, "idleMs": 500 },
+  "expect": [
+    { "probe": "row", "hits": 3 },
+    { "probe": "row", "hit": 3, "expr": "$row", "equals": "\"n/a\"" },
+    { "outcome": "completed" },
+    { "trigger": { "exitCode": 0 } }
+  ]
+}

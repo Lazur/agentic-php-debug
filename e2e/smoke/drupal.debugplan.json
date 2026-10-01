@@ -1,0 +1,25 @@
+{
+  "$schema": "../../schemas/debug-plan.v1.schema.json",
+  "version": 1,
+  "name": "drupal-smoke",
+  "goal": "A real HTTP request reaches the front controller of a ddev Drupal site, and inspection works there. The plan form of scripts/smoke-http.mjs.",
+  "root": "${env:SMOKE_ROOT}",
+  "session": { "pathMappings": { "/var/www/html": "${root}" } },
+  "trigger": {
+    "kind": "command",
+    "argv": ["curl", "-sk", "-o", "/dev/null", "-m", "60", "-b", "XDEBUG_SESSION=plan", "${env:SMOKE_URL}"],
+    "xdebugEnv": false
+  },
+  "probes": [
+    {
+      "id": "front-controller",
+      "file": "web/index.php",
+      "line": 16,
+      "maxCaptures": 1,
+      "capture": { "stack": 5, "evaluate": ["PHP_VERSION"], "locals": { "depth": 0 } }
+    }
+  ],
+  "onUnmatchedStop": "record",
+  "limits": { "timeoutMs": 120000, "connectTimeoutMs": 60000, "idleMs": 2000 },
+  "expect": [{ "outcome": "completed" }]
+}
