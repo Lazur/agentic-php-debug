@@ -4,6 +4,7 @@ import { SessionState } from '../session.js';
 import { successResult, ErrorCodes, type ToolResult } from './types.js';
 import { toolError } from './errors.js';
 import { assertFreshFrameId } from './references.js';
+import type { DebugProtocol } from '@vscode/debugprotocol';
 
 export const debugScopesSchema = z.object({
   frameId: z.number().int().describe('Stack frame ID to get scopes for (from debug_stack_trace)'),
@@ -24,9 +25,11 @@ export async function handleDebugScopes(
 
     assertFreshFrameId(session, args.frameId);
 
-    const response = await session.dapClient.sendRequest('scopes', { frameId: args.frameId });
-    const body = (response as any).body;
-    const scopes = (body?.scopes ?? []).map((scope: any) => ({
+    const response = await session.dapClient.sendRequest<DebugProtocol.ScopesResponse>('scopes', {
+      frameId: args.frameId,
+    });
+    const body = response.body;
+    const scopes = (body?.scopes ?? []).map((scope) => ({
       name: scope.name,
       variablesReference: scope.variablesReference,
       namedVariables: scope.namedVariables,
@@ -34,9 +37,12 @@ export async function handleDebugScopes(
       expensive: scope.expensive,
     }));
 
-    session.noteIssuedVariablesReferences(scopes.map((sc: any) => sc.variablesReference));
+    session.noteIssuedVariablesReferences(scopes.map((sc) => sc.variablesReference));
 
-    return successResult({ scopes, nextAction: 'Call debug_variables with a variablesReference to inspect scope contents.' });
+    return successResult({
+      scopes,
+      nextAction: 'Call debug_variables with a variablesReference to inspect scope contents.',
+    });
   } catch (err: unknown) {
     return toolError(err, { stateCode: ErrorCodes.SESSION_NOT_PAUSED });
   }

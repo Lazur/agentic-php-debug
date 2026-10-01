@@ -49,7 +49,10 @@ function stopAt(dir: string, line: number, extra: Partial<FakeStop> = {}): FakeS
 
 function invokerFor(fake: FakePhp) {
   const session = fake.session();
-  const invoker = new InProcessInvoker(session, coreToolDefinitions({ launchDeps: { isPortBound: async () => false } }));
+  const invoker = new InProcessInvoker(
+    session,
+    coreToolDefinitions({ launchDeps: { isPortBound: async () => false } }),
+  );
   return { session, invoker };
 }
 
@@ -125,7 +128,12 @@ describe('plan runner', () => {
     const { report } = await run(
       fake,
       dir,
-      plan({ expect: [{ probe: 'line-total', hit: 1, expr: '$lineTotal', equals: '3.34' }, { probe: 'line-total', hits: 3 }] }),
+      plan({
+        expect: [
+          { probe: 'line-total', hit: 1, expr: '$lineTotal', equals: '3.34' },
+          { probe: 'line-total', hits: 3 },
+        ],
+      }),
       [{ stops: [stopAt(dir, 5, { evaluate: { $lineTotal: { result: '3.35', type: 'float' } } })] }],
     );
     expect(report.expectations.map((r) => r.pass)).toEqual([false, false]);
@@ -136,11 +144,17 @@ describe('plan runner', () => {
   it('counts hits past maxCaptures without inspecting them', async () => {
     const dir = workspace();
     const fake = new FakePhp();
-    const stops = Array.from({ length: 5 }, () => stopAt(dir, 5, { evaluate: { $lineTotal: { result: '1', type: 'int' } } }));
+    const stops = Array.from({ length: 5 }, () =>
+      stopAt(dir, 5, { evaluate: { $lineTotal: { result: '1', type: 'int' } } }),
+    );
     const { report } = await run(
       fake,
       dir,
-      plan({ probes: [{ id: 'line-total', file: 'cart.php', line: 5, maxCaptures: 2, capture: { evaluate: ['$lineTotal'] } }] }),
+      plan({
+        probes: [
+          { id: 'line-total', file: 'cart.php', line: 5, maxCaptures: 2, capture: { evaluate: ['$lineTotal'] } },
+        ],
+      }),
       [{ stops }],
     );
     expect(report.probes['line-total']).toEqual({ kind: 'line', hits: 5, captured: 2 });
@@ -151,7 +165,9 @@ describe('plan runner', () => {
   it('records an unmatched stop and continues by default', async () => {
     const dir = workspace();
     const fake = new FakePhp();
-    const { report } = await run(fake, dir, plan(), [{ stops: [stopAt(dir, 10, { function: '{main}' }), stopAt(dir, 5)] }]);
+    const { report } = await run(fake, dir, plan(), [
+      { stops: [stopAt(dir, 10, { function: '{main}' }), stopAt(dir, 5)] },
+    ]);
     expect(report.outcome).toBe('completed');
     expect(report.unmatchedStops).toBe(1);
     expect(report.stops[0]).toMatchObject({ kind: 'unmatched', probe: null, location: { line: 10 } });
@@ -162,7 +178,9 @@ describe('plan runner', () => {
   it('drops an unmatched stop from the timeline with onUnmatchedStop "ignore"', async () => {
     const dir = workspace();
     const fake = new FakePhp();
-    const { report } = await run(fake, dir, plan({ onUnmatchedStop: 'ignore' }), [{ stops: [stopAt(dir, 10), stopAt(dir, 5)] }]);
+    const { report } = await run(fake, dir, plan({ onUnmatchedStop: 'ignore' }), [
+      { stops: [stopAt(dir, 10), stopAt(dir, 5)] },
+    ]);
     expect(report.unmatchedStops).toBe(1);
     expect(report.stops.map((s) => s.kind)).toEqual(['line']);
   });
@@ -170,7 +188,9 @@ describe('plan runner', () => {
   it('aborts on an unmatched stop with onUnmatchedStop "abort", still tearing down', async () => {
     const dir = workspace();
     const fake = new FakePhp();
-    const { report, session } = await run(fake, dir, plan({ onUnmatchedStop: 'abort' }), [{ stops: [stopAt(dir, 10)] }]);
+    const { report, session } = await run(fake, dir, plan({ onUnmatchedStop: 'abort' }), [
+      { stops: [stopAt(dir, 10)] },
+    ]);
     expect(report.outcome).toBe('failed');
     expect(report.errors.map((e) => e.code)).toContain('UNMATCHED_STOP');
     expect(session.state).toBe(SessionState.Terminated);
@@ -223,12 +243,9 @@ describe('plan runner', () => {
   it('matches a stop on the line the adapter resolved the breakpoint to', async () => {
     const dir = workspace();
     const fake = new FakePhp({ resolveLine: (_f, line) => (line === 4 ? 5 : line) });
-    const { report } = await run(
-      fake,
-      dir,
-      plan({ probes: [{ id: 'line-total', file: 'cart.php', line: 4 }] }),
-      [{ stops: [stopAt(dir, 5)] }],
-    );
+    const { report } = await run(fake, dir, plan({ probes: [{ id: 'line-total', file: 'cart.php', line: 4 }] }), [
+      { stops: [stopAt(dir, 5)] },
+    ]);
     expect(report.stops[0]).toMatchObject({ kind: 'line', probe: 'line-total' });
   });
 
@@ -279,15 +296,21 @@ describe('plan runner', () => {
     const dir = workspace();
     const fake = new FakePhp();
     const abort = new AbortController();
-    const { report, session } = await run(fake, dir, plan(), [{ stops: [stopAt(dir, 5), stopAt(dir, 5), stopAt(dir, 5)] }], {
-      trigger: { neverSettle: true },
-      run: {
-        signal: abort.signal,
-        onProgress: (p) => {
-          if (p.message.startsWith('stop 1')) abort.abort();
+    const { report, session } = await run(
+      fake,
+      dir,
+      plan(),
+      [{ stops: [stopAt(dir, 5), stopAt(dir, 5), stopAt(dir, 5)] }],
+      {
+        trigger: { neverSettle: true },
+        run: {
+          signal: abort.signal,
+          onProgress: (p) => {
+            if (p.message.startsWith('stop 1')) abort.abort();
+          },
         },
       },
-    });
+    );
     expect(report.outcome).toBe('cancelled');
     expect(report.probes['line-total'].hits).toBe(1);
     expect(session.state).toBe(SessionState.Terminated);
@@ -322,7 +345,9 @@ describe('plan runner', () => {
     const { report } = await run(
       fake,
       dir,
-      plan({ probes: [{ id: 'line-total', file: 'cart.php', line: 5, capture: { evaluate: ['$missing', '$lineTotal'] } }] }),
+      plan({
+        probes: [{ id: 'line-total', file: 'cart.php', line: 5, capture: { evaluate: ['$missing', '$lineTotal'] } }],
+      }),
       [{ stops: [stopAt(dir, 5, { evaluate: { $lineTotal: { result: '3.35', type: 'float' } } })] }],
     );
     expect(report.outcome).toBe('completed');
@@ -353,7 +378,12 @@ describe('plan runner', () => {
               locals: [
                 { name: '$password', value: "'hunter2'", type: 'string' },
                 { name: '$qty', value: '3', type: 'int' },
-                { name: '$user', value: 'App\\User', type: 'object', children: [{ name: 'passwordHash', value: "'x'", type: 'string' }] },
+                {
+                  name: '$user',
+                  value: 'App\\User',
+                  type: 'object',
+                  children: [{ name: 'passwordHash', value: "'x'", type: 'string' }],
+                },
               ],
               superglobals: [{ name: '$_SERVER', value: 'array(40)', type: 'array' }],
             }),
@@ -382,9 +412,24 @@ describe('plan runner', () => {
           { id: 'echo', file: 'cart.php', line: 12, tests: ['H3'] },
         ],
         hypotheses: [
-          { id: 'H1', basis: 'rounding', claim: 'rounds to 3.35', predicts: [{ probe: 'line-total', hit: 1, expr: '$lineTotal', equals: '3.35' }] },
-          { id: 'H2', basis: 'rounding', claim: 'rounds to 3.34', predicts: [{ probe: 'line-total', hit: 1, expr: '$lineTotal', equals: '3.34' }] },
-          { id: 'H3', basis: 'output', claim: 'echo shows 5.85', predicts: [{ probe: 'echo', expr: '$total', equals: '5.85' }] },
+          {
+            id: 'H1',
+            basis: 'rounding',
+            claim: 'rounds to 3.35',
+            predicts: [{ probe: 'line-total', hit: 1, expr: '$lineTotal', equals: '3.35' }],
+          },
+          {
+            id: 'H2',
+            basis: 'rounding',
+            claim: 'rounds to 3.34',
+            predicts: [{ probe: 'line-total', hit: 1, expr: '$lineTotal', equals: '3.34' }],
+          },
+          {
+            id: 'H3',
+            basis: 'output',
+            claim: 'echo shows 5.85',
+            predicts: [{ probe: 'echo', expr: '$total', equals: '5.85' }],
+          },
         ],
       }),
       [{ stops: [stopAt(dir, 5, { evaluate: { $lineTotal: { result: '3.35', type: 'float' } } })] }],
@@ -405,7 +450,9 @@ describe('plan runner', () => {
         surface: inner.surface,
         tools: () => inner.tools(),
         invoke: async (name, args, ctx) =>
-          name === 'debug_continue' ? { success: true, data: { resumed: false, state: 'paused' } } : inner.invoke(name, args, ctx),
+          name === 'debug_continue'
+            ? { success: true, data: { resumed: false, state: 'paused' } }
+            : inner.invoke(name, args, ctx),
       }),
     });
     expect(report.outcome).toBe('failed');
@@ -414,7 +461,14 @@ describe('plan runner', () => {
 
   it('produces identical normalized reports across runs whose ids differ', async () => {
     const connections = (dir: string): FakeConnection[] => [
-      { stops: [stopAt(dir, 5, { evaluate: { $lineTotal: { result: '3.35', type: 'float' } }, callers: [{ file: join(dir, 'cart.php'), line: 10 }] })] },
+      {
+        stops: [
+          stopAt(dir, 5, {
+            evaluate: { $lineTotal: { result: '3.35', type: 'float' } },
+            callers: [{ file: join(dir, 'cart.php'), line: 10 }],
+          }),
+        ],
+      },
     ];
     const dir = workspace();
     const planInput = plan({

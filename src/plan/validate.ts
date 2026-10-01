@@ -167,12 +167,16 @@ export function loadPlanFile(path: string): unknown {
   try {
     text = readFileSync(path, 'utf-8');
   } catch (err) {
-    throw new Error(`Cannot read plan file "${path}": ${err instanceof Error ? err.message : String(err)}`);
+    throw new Error(`Cannot read plan file "${path}": ${err instanceof Error ? err.message : String(err)}`, {
+      cause: err,
+    });
   }
   try {
     return JSON.parse(text);
   } catch (err) {
-    throw new Error(`Plan file "${path}" is not valid JSON: ${err instanceof Error ? err.message : String(err)}`);
+    throw new Error(`Plan file "${path}" is not valid JSON: ${err instanceof Error ? err.message : String(err)}`, {
+      cause: err,
+    });
   }
 }
 
@@ -261,7 +265,8 @@ export function validatePlan(input: unknown, opts: ValidateOptions = {}): Valida
 
   const hypothesisIds = new Set<string>();
   (plan.hypotheses ?? []).forEach((h, i) => {
-    if (hypothesisIds.has(h.id)) errors.push({ path: `hypotheses[${i}].id`, message: `Duplicate hypothesis id "${h.id}"` });
+    if (hypothesisIds.has(h.id))
+      errors.push({ path: `hypotheses[${i}].id`, message: `Duplicate hypothesis id "${h.id}"` });
     hypothesisIds.add(h.id);
   });
 
@@ -278,7 +283,10 @@ export function validatePlan(input: unknown, opts: ValidateOptions = {}): Valida
       if (lines === null) {
         errors.push({ path: `${path}.file`, message: `File not found: ${declared}` });
       } else if (p.line > lines.length) {
-        errors.push({ path: `${path}.line`, message: `Line ${p.line} is past the end of ${p.file} (${lines.length} lines)` });
+        errors.push({
+          path: `${path}.line`,
+          message: `Line ${p.line} is past the end of ${p.file} (${lines.length} lines)`,
+        });
       } else if (!looksExecutable(lines[p.line - 1])) {
         warnings.push({
           path: `${path}.line`,
@@ -347,8 +355,7 @@ export function validatePlan(input: unknown, opts: ValidateOptions = {}): Valida
     (h.predicts ?? []).forEach((p, pi) =>
       checkExpectation(p, `hypotheses[${hi}].predicts[${pi}]`, allProbes, errors, warnings),
     );
-    const tested =
-      (h.predicts?.length ?? 0) > 0 || [...allProbes.values()].some((p) => p.tests.includes(h.id));
+    const tested = (h.predicts?.length ?? 0) > 0 || [...allProbes.values()].some((p) => p.tests.includes(h.id));
     if (!tested) {
       warnings.push({
         path: `hypotheses[${hi}]`,
@@ -575,7 +582,10 @@ function checkExpectation(
         }
       }
       if (probe.maxCaptures === 0) {
-        warnings.push({ path, message: `Probe "${e.probe}" has maxCaptures 0, so no value is ever captured to check.` });
+        warnings.push({
+          path,
+          message: `Probe "${e.probe}" has maxCaptures 0, so no value is ever captured to check.`,
+        });
       } else if (e.hit !== undefined && e.hit > probe.maxCaptures) {
         errors.push({
           path: `${path}.hit`,

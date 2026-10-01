@@ -4,6 +4,7 @@ import { SessionState } from '../session.js';
 import { describeBreakpoints, detectStateMismatch } from '../breakpoint-verification.js';
 import { successResult, ErrorCodes, type ToolResult } from './types.js';
 import { toolError } from './errors.js';
+import type { DebugProtocol } from '@vscode/debugprotocol';
 
 export const debugSetExceptionBreakpointsSchema = z.object({
   filters: z.array(z.string()).describe('Array of exception filter IDs (e.g. "Notice", "Warning", "Exception", "*")'),
@@ -20,19 +21,18 @@ export async function handleDebugSetExceptionBreakpoints(
   args: z.infer<typeof debugSetExceptionBreakpointsSchema>,
 ): Promise<ToolResult> {
   try {
-    session.assertState(
-      SessionState.Listening,
-      SessionState.Connected,
-      SessionState.Paused,
-    );
+    session.assertState(SessionState.Listening, SessionState.Connected, SessionState.Paused);
 
     const dapArgs = {
       filters: args.filters,
     };
 
     const stateAtWrite = session.state;
-    const response = await session.dapClient.sendRequest('setExceptionBreakpoints', dapArgs);
-    const body = (response as any).body;
+    const response = await session.dapClient.sendRequest<DebugProtocol.SetExceptionBreakpointsResponse>(
+      'setExceptionBreakpoints',
+      dapArgs,
+    );
+    const body = response.body;
     const breakpoints = body?.breakpoints ?? [];
 
     const staged = stateAtWrite === SessionState.Connected;
@@ -47,7 +47,8 @@ export async function handleDebugSetExceptionBreakpoints(
       ...(staged
         ? {
             nextAction: 'Call debug_wait to reach a pause — these are not active until then.',
-            warning: 'NOT applied. The adapter stages breakpoint writes while PHP is running and does not send them until execution next pauses.',
+            warning:
+              'NOT applied. The adapter stages breakpoint writes while PHP is running and does not send them until execution next pauses.',
           }
         : {}),
       ...(mismatch ? { stateWarning: mismatch } : {}),

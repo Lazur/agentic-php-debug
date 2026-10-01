@@ -70,10 +70,7 @@ function normalizeProperty(prop: Record<string, unknown>): Record<string, unknow
  * Core comparison: returns list of differences between Zod-generated JSON Schema
  * and a package.json inputSchema entry.
  */
-function compareSchemas(
-  zodGenerated: Record<string, unknown>,
-  packageInputSchema: Record<string, unknown>,
-): string[] {
+function compareSchemas(zodGenerated: Record<string, unknown>, packageInputSchema: Record<string, unknown>): string[] {
   const diffs: string[] = [];
   const normalized = normalizeGenerated(zodGenerated);
 
@@ -116,7 +113,6 @@ function compareSchemas(
 
   return diffs;
 }
-
 
 // ── Schema → tool name mapping ───────────────────────────────────────────────
 
@@ -215,11 +211,13 @@ describe('Property 3: CI schema check detects drift', () => {
   it('detects drift when a property type is changed in inputSchema', () => {
     fc.assert(
       fc.property(
-        fc.constantFrom(...matchedSchemas.filter((s) => {
-          const gen = z.toJSONSchema(s.schema) as Record<string, unknown>;
-          const props = gen.properties as Record<string, unknown> | undefined;
-          return props && Object.keys(props).length > 0;
-        })),
+        fc.constantFrom(
+          ...matchedSchemas.filter((s) => {
+            const gen = z.toJSONSchema(s.schema) as Record<string, unknown>;
+            const props = gen.properties as Record<string, unknown> | undefined;
+            return props && Object.keys(props).length > 0;
+          }),
+        ),
         fc.constantFrom('string', 'number', 'boolean', 'array'),
         (schemaEntry, newType) => {
           const generated = z.toJSONSchema(schemaEntry.schema) as Record<string, unknown>;
@@ -248,16 +246,13 @@ describe('Property 3: CI schema check detects drift', () => {
     // For each matched schema, generate JSON Schema from Zod and compare
     // against itself (normalized) — should always produce zero diffs
     fc.assert(
-      fc.property(
-        fc.constantFrom(...matchedSchemas),
-        (schemaEntry) => {
-          const generated = z.toJSONSchema(schemaEntry.schema) as Record<string, unknown>;
-          // Build a "package.json-style" inputSchema from the generated one
-          const normalized = normalizeGenerated(generated);
-          const diffs = compareSchemas(generated, normalized);
-          expect(diffs).toEqual([]);
-        },
-      ),
+      fc.property(fc.constantFrom(...matchedSchemas), (schemaEntry) => {
+        const generated = z.toJSONSchema(schemaEntry.schema) as Record<string, unknown>;
+        // Build a "package.json-style" inputSchema from the generated one
+        const normalized = normalizeGenerated(generated);
+        const diffs = compareSchemas(generated, normalized);
+        expect(diffs).toEqual([]);
+      }),
       { numRuns: 100 },
     );
   });
@@ -276,20 +271,17 @@ describe('Property 4: Sync-then-check round trip', () => {
 
   it('sync-then-check produces zero drift for all schemas', () => {
     fc.assert(
-      fc.property(
-        fc.constantFrom(...zodSchemas),
-        (schemaEntry) => {
-          // Sync step: generate JSON Schema from Zod
-          const generated = z.toJSONSchema(schemaEntry.schema) as Record<string, unknown>;
+      fc.property(fc.constantFrom(...zodSchemas), (schemaEntry) => {
+        // Sync step: generate JSON Schema from Zod
+        const generated = z.toJSONSchema(schemaEntry.schema) as Record<string, unknown>;
 
-          // Simulate writing to package.json: normalize to package.json format
-          const synced = normalizeGenerated(generated);
+        // Simulate writing to package.json: normalize to package.json format
+        const synced = normalizeGenerated(generated);
 
-          // Check step: compare the generated schema against the synced version
-          const diffs = compareSchemas(generated, synced);
-          expect(diffs).toEqual([]);
-        },
-      ),
+        // Check step: compare the generated schema against the synced version
+        const diffs = compareSchemas(generated, synced);
+        expect(diffs).toEqual([]);
+      }),
       { numRuns: 100 },
     );
   });
@@ -303,35 +295,39 @@ describe('Property 4: Sync-then-check round trip', () => {
     });
 
     fc.assert(
-      fc.property(
-        fc.array(propertyArb, { minLength: 0, maxLength: 5 }),
-        (properties) => {
-          // Build a Zod schema dynamically
-          const shape: Record<string, z.ZodType> = {};
-          for (const prop of properties) {
-            // Deduplicate by name
-            if (shape[prop.name]) continue;
-            let field: z.ZodType;
-            switch (prop.type) {
-              case 'string': field = z.string(); break;
-              case 'number': field = z.number(); break;
-              case 'boolean': field = z.boolean(); break;
-              default: field = z.string();
-            }
-            if (prop.optional) field = field.optional();
-            shape[prop.name] = field;
+      fc.property(fc.array(propertyArb, { minLength: 0, maxLength: 5 }), (properties) => {
+        // Build a Zod schema dynamically
+        const shape: Record<string, z.ZodType> = {};
+        for (const prop of properties) {
+          // Deduplicate by name
+          if (shape[prop.name]) continue;
+          let field: z.ZodType;
+          switch (prop.type) {
+            case 'string':
+              field = z.string();
+              break;
+            case 'number':
+              field = z.number();
+              break;
+            case 'boolean':
+              field = z.boolean();
+              break;
+            default:
+              field = z.string();
           }
-          const schema = z.object(shape);
+          if (prop.optional) field = field.optional();
+          shape[prop.name] = field;
+        }
+        const schema = z.object(shape);
 
-          // Sync: generate JSON Schema
-          const generated = z.toJSONSchema(schema) as Record<string, unknown>;
-          const synced = normalizeGenerated(generated);
+        // Sync: generate JSON Schema
+        const generated = z.toJSONSchema(schema) as Record<string, unknown>;
+        const synced = normalizeGenerated(generated);
 
-          // Check: compare
-          const diffs = compareSchemas(generated, synced);
-          expect(diffs).toEqual([]);
-        },
-      ),
+        // Check: compare
+        const diffs = compareSchemas(generated, synced);
+        expect(diffs).toEqual([]);
+      }),
       { numRuns: 100 },
     );
   });

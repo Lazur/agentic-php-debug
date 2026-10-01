@@ -8,9 +8,7 @@ import { PathMapper, type PathMapping } from '../path-mapper.js';
  */
 const arbPathSegment = fc.stringMatching(/^[a-z0-9_-]{1,10}$/);
 
-const arbDirPath = fc
-  .array(arbPathSegment, { minLength: 1, maxLength: 4 })
-  .map((segments) => '/' + segments.join('/'));
+const arbDirPath = fc.array(arbPathSegment, { minLength: 1, maxLength: 4 }).map((segments) => '/' + segments.join('/'));
 
 const arbPathMapping: fc.Arbitrary<PathMapping> = fc
   .tuple(arbDirPath, arbDirPath)
@@ -20,13 +18,11 @@ const arbPathMapping: fc.Arbitrary<PathMapping> = fc
 /**
  * Arbitrary for a non-empty list of path mappings with unique local and remote prefixes.
  */
-const arbMappings = fc
-  .array(arbPathMapping, { minLength: 1, maxLength: 5 })
-  .filter((mappings) => {
-    const locals = mappings.map((m) => m.local);
-    const remotes = mappings.map((m) => m.remote);
-    return new Set(locals).size === locals.length && new Set(remotes).size === remotes.length;
-  });
+const arbMappings = fc.array(arbPathMapping, { minLength: 1, maxLength: 5 }).filter((mappings) => {
+  const locals = mappings.map((m) => m.local);
+  const remotes = mappings.map((m) => m.remote);
+  return new Set(locals).size === locals.length && new Set(remotes).size === remotes.length;
+});
 
 /**
  * Given mappings, generate a local path that starts with one of the local prefixes.
@@ -34,12 +30,10 @@ const arbMappings = fc
 function arbMappedLocalPath(mappings: PathMapping[]): fc.Arbitrary<{ path: string; mapping: PathMapping }> {
   return fc.nat({ max: mappings.length - 1 }).chain((idx) => {
     const mapping = mappings[idx];
-    return fc
-      .array(arbPathSegment, { minLength: 0, maxLength: 3 })
-      .map((extra) => ({
-        path: mapping.local + (extra.length > 0 ? '/' + extra.join('/') : ''),
-        mapping,
-      }));
+    return fc.array(arbPathSegment, { minLength: 0, maxLength: 3 }).map((extra) => ({
+      path: mapping.local + (extra.length > 0 ? '/' + extra.join('/') : ''),
+      mapping,
+    }));
   });
 }
 
@@ -60,9 +54,7 @@ describe('PathMapper property tests', () => {
   it('round-trip: toRemote then toLocal returns original local path', () => {
     fc.assert(
       fc.property(
-        arbMappings.chain((mappings) =>
-          arbMappedLocalPath(mappings).map((result) => ({ mappings, ...result })),
-        ),
+        arbMappings.chain((mappings) => arbMappedLocalPath(mappings).map((result) => ({ mappings, ...result }))),
         ({ mappings, path }) => {
           const mapper = new PathMapper(mappings);
           const remote = mapper.toRemote(path);
@@ -82,8 +74,9 @@ describe('PathMapper property tests', () => {
   it('longest prefix wins when multiple mappings match', () => {
     fc.assert(
       fc.property(
-        fc.tuple(arbPathSegment, arbPathSegment, arbPathSegment, arbPathSegment, arbPathSegment).chain(
-          ([a, b, c, localBase, remoteBase]) => {
+        fc
+          .tuple(arbPathSegment, arbPathSegment, arbPathSegment, arbPathSegment, arbPathSegment)
+          .chain(([a, b, c, localBase, remoteBase]) => {
             // Create two overlapping mappings: short prefix and long prefix
             const shortLocal = `/${a}/${b}`;
             const longLocal = `/${a}/${b}/${c}`;
@@ -99,20 +92,17 @@ describe('PathMapper property tests', () => {
             ];
 
             // Generate a path that matches the longer prefix
-            return fc
-              .array(arbPathSegment, { minLength: 0, maxLength: 3 })
-              .map((extra) => ({
-                mappings,
-                testPath: longLocal + (extra.length > 0 ? '/' + extra.join('/') : ''),
-                longRemote,
-                longLocal,
-                extra,
-              }));
-          },
-        ),
+            return fc.array(arbPathSegment, { minLength: 0, maxLength: 3 }).map((extra) => ({
+              mappings,
+              testPath: longLocal + (extra.length > 0 ? '/' + extra.join('/') : ''),
+              longRemote,
+              longLocal,
+              extra,
+            }));
+          }),
         (result) => {
           if (result === null) return; // skip degenerate case
-          const { mappings, testPath, longRemote, longLocal, extra } = result;
+          const { mappings, testPath, longRemote, longLocal } = result;
           const mapper = new PathMapper(mappings);
           const remotePath = mapper.toRemote(testPath);
           const expectedRemote = longRemote + testPath.slice(longLocal.length);
@@ -133,10 +123,7 @@ describe('PathMapper property tests', () => {
     fc.assert(
       fc.property(
         arbMappings.chain((mappings) => {
-          const allPrefixes = [
-            ...mappings.map((m) => m.local),
-            ...mappings.map((m) => m.remote),
-          ];
+          const allPrefixes = [...mappings.map((m) => m.local), ...mappings.map((m) => m.remote)];
           return arbUnmappedPath(allPrefixes).map((path) => ({ mappings, path }));
         }),
         ({ mappings, path }) => {

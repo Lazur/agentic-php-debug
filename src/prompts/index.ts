@@ -50,7 +50,9 @@ export function registerPlanResources(server: McpServer, store: RunStore, mode: 
       mimeType: 'application/schema+json',
     },
     async (uri) => ({
-      contents: [{ uri: uri.href, mimeType: 'application/schema+json', text: JSON.stringify(planJsonSchema(), null, 2) }],
+      contents: [
+        { uri: uri.href, mimeType: 'application/schema+json', text: JSON.stringify(planJsonSchema(), null, 2) },
+      ],
     }),
   );
 

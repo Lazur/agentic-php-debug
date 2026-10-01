@@ -32,7 +32,6 @@ export class DAPStreamParser extends EventEmitter {
   }
 
   private parse(): void {
-    // eslint-disable-next-line no-constant-condition
     while (true) {
       if (this.contentLength === -1) {
         // Look for the header separator
@@ -59,7 +58,7 @@ export class DAPStreamParser extends EventEmitter {
         const message = JSON.parse(body);
         this.emit('message', message);
       } catch (err) {
-        this.emit('error', new Error(`Failed to parse DAP message body: ${body}`));
+        this.emit('error', new Error(`Failed to parse DAP message body: ${body}`, { cause: err }));
       }
     }
   }

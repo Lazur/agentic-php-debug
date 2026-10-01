@@ -52,11 +52,10 @@ const arbConfig: fc.Arbitrary<Config> = fc.record({
   port: fc.integer({ min: 1, max: 65535 }),
   hostname: fc.string({ minLength: 1, maxLength: 50 }),
   stopOnEntry: fc.boolean(),
-  pathMappings: fc.dictionary(
-    fc.string({ minLength: 1, maxLength: 30 }),
-    fc.string({ minLength: 1, maxLength: 30 }),
-    { minKeys: 0, maxKeys: 3 },
-  ),
+  pathMappings: fc.dictionary(fc.string({ minLength: 1, maxLength: 30 }), fc.string({ minLength: 1, maxLength: 30 }), {
+    minKeys: 0,
+    maxKeys: 3,
+  }),
   program: fc.option(fc.string({ minLength: 1, maxLength: 50 }), { nil: undefined }),
   args: fc.option(arbStringArray, { nil: undefined }),
   cwd: fc.option(fc.string({ minLength: 1, maxLength: 50 }), { nil: undefined }),
@@ -194,13 +193,16 @@ describe('Config unit tests - edge cases', () => {
    */
   it('normalizes pathMappings record preserving remote-to-local pairs', () => {
     const configPath = join(tempDir, 'mappings.json');
-    writeFileSync(configPath, JSON.stringify({
-      adapterPath: '/usr/bin/php-debug',
-      pathMappings: {
-        '/var/www/html': '/home/user/project',
-        '/app/src': '/local/src',
-      },
-    }));
+    writeFileSync(
+      configPath,
+      JSON.stringify({
+        adapterPath: '/usr/bin/php-debug',
+        pathMappings: {
+          '/var/www/html': '/home/user/project',
+          '/app/src': '/local/src',
+        },
+      }),
+    );
 
     const config = loadConfig(configPath);
     expect(config.pathMappings).toEqual({

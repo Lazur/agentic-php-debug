@@ -3,17 +3,17 @@
     "php-debug": {
       "command": "node",
       "args": [
-        "/absolute/path/to/ts-php-debug-mcp/dist/index.js",
+        "/absolute/path/to/agentic-php-debug/dist/index.js",
         "--config",
-        "/absolute/path/to/ts-php-debug-mcp/config.php.local.json"
+        "/absolute/path/to/agentic-php-debug/config.php.local.json"
       ]
     },
     "php-debug-plan": {
       "command": "node",
       "args": [
-        "/absolute/path/to/ts-php-debug-mcp/dist/index.js",
+        "/absolute/path/to/agentic-php-debug/dist/index.js",
         "--config",
-        "/absolute/path/to/ts-php-debug-mcp/config.php.local.json",
+        "/absolute/path/to/agentic-php-debug/config.php.local.json",
         "--mode",
         "plan",
         "--allow-command-trigger",

@@ -4,6 +4,7 @@ import { SessionState } from '../session.js';
 import { describeBreakpoints, detectStateMismatch } from '../breakpoint-verification.js';
 import { successResult, ErrorCodes, type ToolResult } from './types.js';
 import { toolError } from './errors.js';
+import type { DebugProtocol } from '@vscode/debugprotocol';
 
 const functionBreakpointSchema = z.object({
   name: z.string().describe('Function name to break on'),
@@ -24,11 +25,7 @@ export async function handleDebugSetFunctionBreakpoints(
   args: z.infer<typeof debugSetFunctionBreakpointsSchema>,
 ): Promise<ToolResult> {
   try {
-    session.assertState(
-      SessionState.Listening,
-      SessionState.Connected,
-      SessionState.Paused,
-    );
+    session.assertState(SessionState.Listening, SessionState.Connected, SessionState.Paused);
 
     const dapArgs = {
       breakpoints: args.breakpoints.map((bp) => ({
@@ -39,8 +36,11 @@ export async function handleDebugSetFunctionBreakpoints(
     };
 
     const stateAtWrite = session.state;
-    const response = await session.dapClient.sendRequest('setFunctionBreakpoints', dapArgs);
-    const body = (response as any).body;
+    const response = await session.dapClient.sendRequest<DebugProtocol.SetFunctionBreakpointsResponse>(
+      'setFunctionBreakpoints',
+      dapArgs,
+    );
+    const body = response.body;
     const breakpoints = body?.breakpoints ?? [];
 
     const staged = stateAtWrite === SessionState.Connected;
@@ -54,7 +54,8 @@ export async function handleDebugSetFunctionBreakpoints(
       ...(staged
         ? {
             nextAction: 'Call debug_wait to reach a pause — these are not active until then.',
-            warning: 'NOT applied. The adapter stages breakpoint writes while PHP is running and does not send them until execution next pauses.',
+            warning:
+              'NOT applied. The adapter stages breakpoint writes while PHP is running and does not send them until execution next pauses.',
           }
         : {}),
       ...(mismatch ? { stateWarning: mismatch } : {}),

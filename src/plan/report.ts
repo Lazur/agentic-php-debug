@@ -145,15 +145,24 @@ function evaluateOne(
     for (const stop of captured) {
       const v = stop.evaluate?.[e.expr];
       if (!v || v.error || v.redacted) {
-        failures.push(`hit ${stop.hit}: ${v?.error ? `${v.error.code} ${v.error.message}` : v?.redacted ? 'value redacted' : 'not evaluated'}`);
+        failures.push(
+          `hit ${stop.hit}: ${v?.error ? `${v.error.code} ${v.error.message}` : v?.redacted ? 'value redacted' : 'not evaluated'}`,
+        );
         continue;
       }
       observed = true;
-      actual.push({ hit: stop.hit, ...(v.value !== undefined ? { value: v.value } : {}), ...(v.type !== undefined ? { type: v.type } : {}) });
+      actual.push({
+        hit: stop.hit,
+        ...(v.value !== undefined ? { value: v.value } : {}),
+        ...(v.type !== undefined ? { type: v.type } : {}),
+      });
       const problems: string[] = [];
-      if (e.equals !== undefined && v.value !== e.equals) problems.push(`value ${JSON.stringify(v.value)} ≠ ${JSON.stringify(e.equals)}`);
-      if (e.matches !== undefined && !new RegExp(e.matches).test(v.value ?? '')) problems.push(`value ${JSON.stringify(v.value)} does not match /${e.matches}/`);
-      if (e.type !== undefined && v.type !== e.type) problems.push(`type ${JSON.stringify(v.type)} ≠ ${JSON.stringify(e.type)}`);
+      if (e.equals !== undefined && v.value !== e.equals)
+        problems.push(`value ${JSON.stringify(v.value)} ≠ ${JSON.stringify(e.equals)}`);
+      if (e.matches !== undefined && !new RegExp(e.matches).test(v.value ?? ''))
+        problems.push(`value ${JSON.stringify(v.value)} does not match /${e.matches}/`);
+      if (e.type !== undefined && v.type !== e.type)
+        problems.push(`type ${JSON.stringify(v.type)} ≠ ${JSON.stringify(e.type)}`);
       if (problems.length > 0) failures.push(`hit ${stop.hit}: ${problems.join(', ')}`);
     }
     return {
@@ -179,7 +188,13 @@ function evaluateOne(
 
   if ('outcome' in e) {
     const pass = report.outcome === e.outcome;
-    return { expect: e, pass, observed: true, actual: report.outcome, ...(pass ? {} : { message: `outcome was "${report.outcome}"` }) };
+    return {
+      expect: e,
+      pass,
+      observed: true,
+      actual: report.outcome,
+      ...(pass ? {} : { message: `outcome was "${report.outcome}"` }),
+    };
   }
 
   // trigger
@@ -230,7 +245,12 @@ export function normalizeReport(report: PlanRunReport): unknown {
   const rel = (p: string | undefined): string | undefined => {
     if (p === undefined) return undefined;
     if (p === root) return '${root}';
-    return p.startsWith(root + sep) ? `\${root}/${p.slice(root.length + 1).split(sep).join('/')}` : p;
+    return p.startsWith(root + sep)
+      ? `\${root}/${p
+          .slice(root.length + 1)
+          .split(sep)
+          .join('/')}`
+      : p;
   };
   const threads = new Map<number, string>();
   const thread = (id: number) => {
@@ -253,14 +273,16 @@ export function normalizeReport(report: PlanRunReport): unknown {
       thread: thread(s.threadId),
       location: s.location ? { ...s.location, file: rel(s.location.file) } : undefined,
       frames: s.frames?.map((f) => ({ ...f, file: rel(f.file) })),
-      evaluate: s.evaluate
-        ? Object.fromEntries(Object.entries(s.evaluate).filter(([, v]) => !v.volatile))
-        : undefined,
+      evaluate: s.evaluate ? Object.fromEntries(Object.entries(s.evaluate).filter(([, v]) => !v.volatile)) : undefined,
       locals: s.locals,
       // `details` is the adapter's free text (its stack trace names server-side
       // paths); `frames` already carries the same information, normalized.
       exception: s.exception
-        ? { exceptionId: s.exception.exceptionId, description: s.exception.description, breakMode: s.exception.breakMode }
+        ? {
+            exceptionId: s.exception.exceptionId,
+            description: s.exception.description,
+            breakMode: s.exception.breakMode,
+          }
         : undefined,
       errors: s.errors?.map((e) => ({ tool: e.tool, code: e.code })),
     })),
@@ -302,8 +324,10 @@ export function compareToGolden(normalized: unknown, golden: unknown, maxDiffs =
 export function diffJson(expected: unknown, actual: unknown, path = '$', out: string[] = [], max = 50): string[] {
   if (out.length >= max) return out;
   if (Array.isArray(expected) && Array.isArray(actual)) {
-    if (expected.length !== actual.length) out.push(`${path}: expected ${expected.length} item(s), got ${actual.length}`);
-    for (let i = 0; i < Math.min(expected.length, actual.length); i++) diffJson(expected[i], actual[i], `${path}[${i}]`, out, max);
+    if (expected.length !== actual.length)
+      out.push(`${path}: expected ${expected.length} item(s), got ${actual.length}`);
+    for (let i = 0; i < Math.min(expected.length, actual.length); i++)
+      diffJson(expected[i], actual[i], `${path}[${i}]`, out, max);
     return out;
   }
   if (isPlainObject(expected) && isPlainObject(actual)) {
@@ -354,7 +378,11 @@ export function summarizeReport(report: PlanRunReport, opts: SummaryOptions = {}
   };
   const cut = (s: string) => (s.length > maxValue ? `${s.slice(0, maxValue)}…` : s);
   const renderValue = (v: ValueRecord): string =>
-    v.error ? `!${v.error.code}: ${cut(v.error.message)}` : v.redacted ? '[redacted]' : cut(`${v.value ?? ''}${v.type ? ` (${v.type})` : ''}`);
+    v.error
+      ? `!${v.error.code}: ${cut(v.error.message)}`
+      : v.redacted
+        ? '[redacted]'
+        : cut(`${v.value ?? ''}${v.type ? ` (${v.type})` : ''}`);
 
   const failed = report.expectations.filter((r) => !r.pass);
   return {
@@ -373,7 +401,9 @@ export function summarizeReport(report: PlanRunReport, opts: SummaryOptions = {}
       reason: s.reason,
       at: where(s.location?.file, s.location?.line),
       ...(s.location?.function ? { function: s.location.function } : {}),
-      ...(s.evaluate ? { values: Object.fromEntries(Object.entries(s.evaluate).map(([k, v]) => [k, renderValue(v)])) } : {}),
+      ...(s.evaluate
+        ? { values: Object.fromEntries(Object.entries(s.evaluate).map(([k, v]) => [k, renderValue(v)])) }
+        : {}),
       ...(s.exception?.description ? { exception: cut(s.exception.description) } : {}),
       ...(s.errors?.length ? { captureErrors: s.errors.length } : {}),
     })),
@@ -384,7 +414,13 @@ export function summarizeReport(report: PlanRunReport, opts: SummaryOptions = {}
       ...(failed.length > 0 ? { failures: failed.map((r) => ({ expect: r.expect, message: r.message })) } : {}),
     },
     ...(report.predictions.length > 0
-      ? { predictions: report.predictions.map((p) => ({ hypothesis: p.hypothesis, verdict: p.verdict, claim: p.claim })) }
+      ? {
+          predictions: report.predictions.map((p) => ({
+            hypothesis: p.hypothesis,
+            verdict: p.verdict,
+            claim: p.claim,
+          })),
+        }
       : {}),
     ...(report.trigger
       ? {

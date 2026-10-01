@@ -5,6 +5,7 @@ import { DAPTimeoutError } from '../dap-client.js';
 import { successResult, errorResult, ErrorCodes, type ToolResult } from './types.js';
 import { toolError } from './errors.js';
 import { assertFreshFrameId } from './references.js';
+import type { DebugProtocol } from '@vscode/debugprotocol';
 
 export const debugEvaluateSchema = z.object({
   expression: z.string().describe('PHP expression to evaluate (e.g. "$user->getRoles()", "count($items)")'),
@@ -21,10 +22,7 @@ Requires the session to be in paused state. Use frameId from debug_stack_trace t
 
 For an expression that may be slow — anything reaching into a service container, a query, or the filesystem — pass an explicit "timeout" below your PHP-FPM/web-server read timeout. A DAP_TIMEOUT error then tells you the expression itself was too slow, rather than leaving it indistinguishable from the request being killed underneath you. Note the expression keeps running in the target after a timeout; call debug_status to check the session survived.`;
 
-export async function handleDebugEvaluate(
-  session: SessionManager,
-  args: DebugEvaluateInput,
-): Promise<ToolResult> {
+export async function handleDebugEvaluate(session: SessionManager, args: DebugEvaluateInput): Promise<ToolResult> {
   try {
     session.assertState(SessionState.Paused);
 
@@ -48,8 +46,12 @@ export async function handleDebugEvaluate(
       frameId,
     };
 
-    const response = await session.dapClient.sendRequest('evaluate', dapArgs, args.timeout);
-    const body = (response as any).body;
+    const response = await session.dapClient.sendRequest<DebugProtocol.EvaluateResponse>(
+      'evaluate',
+      dapArgs,
+      args.timeout,
+    );
+    const body = response.body;
     session.noteIssuedVariablesReferences([body?.variablesReference]);
 
     // resolveTopFrameId() picks whichever thread stopInfo names, which is
@@ -80,8 +82,8 @@ export async function handleDebugEvaluate(
     if (err instanceof DAPTimeoutError) {
       return errorResult(
         `${err.message}. The expression was abandoned but the target may still be evaluating it, so the session state may be stale. ` +
-        'Call debug_status to check the session survived. If the target itself is slow, retry with a larger timeout; ' +
-        'if this timeout is already above your PHP-FPM read timeout, the request was likely killed underneath the debugger.',
+          'Call debug_status to check the session survived. If the target itself is slow, retry with a larger timeout; ' +
+          'if this timeout is already above your PHP-FPM read timeout, the request was likely killed underneath the debugger.',
         ErrorCodes.DAP_TIMEOUT,
       );
     }
@@ -93,8 +95,11 @@ export async function handleDebugEvaluate(
 async function resolveTopFrameId(session: SessionManager): Promise<number | undefined> {
   const threadId = session.stopInfo?.threadId;
   if (threadId === undefined) return undefined;
-  const response = await session.dapClient.sendRequest('stackTrace', { threadId, levels: 1 });
-  const id = (response as any).body?.stackFrames?.[0]?.id;
+  const response = await session.dapClient.sendRequest<DebugProtocol.StackTraceResponse>('stackTrace', {
+    threadId,
+    levels: 1,
+  });
+  const id = response.body?.stackFrames?.[0]?.id;
   session.noteIssuedFrameIds([id]);
   return id;
 }

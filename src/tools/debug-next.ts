@@ -4,7 +4,11 @@ import type { ToolResult } from './types.js';
 import { runContinuation } from './continuation.js';
 
 export const debugNextSchema = z.object({
-  threadId: z.number().int().optional().describe('Thread ID to step over on. Defaults to the currently stopped thread.'),
+  threadId: z
+    .number()
+    .int()
+    .optional()
+    .describe('Thread ID to step over on. Defaults to the currently stopped thread.'),
 });
 
 export type DebugNextInput = z.infer<typeof debugNextSchema>;

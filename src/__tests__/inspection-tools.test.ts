@@ -4,7 +4,7 @@ import { handleDebugVariables } from '../tools/debug-variables.js';
 import { handleDebugStackTrace } from '../tools/debug-stack-trace.js';
 import { handleDebugScopes } from '../tools/debug-scopes.js';
 import { handleDebugSetVariable } from '../tools/debug-set-variable.js';
-import { SessionManager, SessionState, type NotificationSender } from '../session.js';
+import { SessionManager, type NotificationSender } from '../session.js';
 import type { DAPClient } from '../dap-client.js';
 import { PathMapper, type PathMapping } from '../path-mapper.js';
 import type { Config } from '../config.js';
@@ -60,7 +60,11 @@ function createMockDAPClient() {
   return { client: client as unknown as DAPClient, mockClient: client, fireEvent };
 }
 
-async function launchAndPause(client: DAPClient, fireEvent: (name: string, body: Record<string, unknown>) => void, mapper?: PathMapper) {
+async function launchAndPause(
+  client: DAPClient,
+  fireEvent: (name: string, body: Record<string, unknown>) => void,
+  mapper?: PathMapper,
+) {
   const session = new SessionManager(stubConfig(), client, mapper ?? new PathMapper([]), stubNotifier());
   await session.launch();
   fireEvent('thread', { threadId: 1, reason: 'started' });
@@ -153,7 +157,13 @@ describe('handleDebugStackTrace', () => {
       body: {
         stackFrames: [
           { id: 1, name: 'main', source: { name: 'index.php', path: '/remote/app/index.php' }, line: 10, column: 1 },
-          { id: 2, name: 'helper', source: { name: 'utils.php', path: '/remote/app/lib/utils.php' }, line: 25, column: 5 },
+          {
+            id: 2,
+            name: 'helper',
+            source: { name: 'utils.php', path: '/remote/app/lib/utils.php' },
+            line: 25,
+            column: 5,
+          },
         ],
         totalFrames: 2,
       },

@@ -84,7 +84,14 @@ export class FakePhp {
     this.backend = {
       async initialize() {
         self.alive = true;
-        return { seq: 0, type: 'response', request_seq: 0, command: 'initialize', success: true, body: {} } as DebugProtocol.InitializeResponse;
+        return {
+          seq: 0,
+          type: 'response',
+          request_seq: 0,
+          command: 'initialize',
+          success: true,
+          body: {},
+        } as DebugProtocol.InitializeResponse;
       },
       async launch() {
         if (self.opts.connectDuringLaunch) {
@@ -96,10 +103,22 @@ export class FakePhp {
         }
         // Emitted right after the launch response, as the adapter does.
         setTimeout(() => self.fire('initialized', {}), 0);
-        return { seq: 0, type: 'response', request_seq: 0, command: 'launch', success: true } as DebugProtocol.LaunchResponse;
+        return {
+          seq: 0,
+          type: 'response',
+          request_seq: 0,
+          command: 'launch',
+          success: true,
+        } as DebugProtocol.LaunchResponse;
       },
       async configurationDone() {
-        return { seq: 0, type: 'response', request_seq: 0, command: 'configurationDone', success: true } as DebugProtocol.ConfigurationDoneResponse;
+        return {
+          seq: 0,
+          type: 'response',
+          request_seq: 0,
+          command: 'configurationDone',
+          success: true,
+        } as DebugProtocol.ConfigurationDoneResponse;
       },
       async sendRequest<T extends DebugProtocol.Response>(command: string, args?: any): Promise<T> {
         self.requests.push({ command, args });
@@ -170,7 +189,8 @@ export class FakePhp {
       this.totalConnections = connections.length;
       this.endedConnections = 0;
       this.onAllEnded = () => {
-        if (!opts.neverSettle) setTimeout(() => settle({ kind: 'command', settled: true, exitCode: opts.exitCode ?? 0 }), 1);
+        if (!opts.neverSettle)
+          setTimeout(() => settle({ kind: 'command', settled: true, exitCode: opts.exitCode ?? 0 }), 1);
       };
 
       if (connections.length === 0) {
@@ -209,7 +229,11 @@ export class FakePhp {
     const stop = pos.conn.stops[pos.index];
     if (stop) {
       // The adapter reports 'step' for a stop that ends a next/stepIn/stepOut.
-      this.fire('stopped', { reason: stop.reason ?? (stepped ? 'step' : 'breakpoint'), threadId, allThreadsStopped: false });
+      this.fire('stopped', {
+        reason: stop.reason ?? (stepped ? 'step' : 'breakpoint'),
+        threadId,
+        allThreadsStopped: false,
+      });
       return;
     }
     this.positions.delete(threadId);
@@ -239,7 +263,9 @@ export class FakePhp {
           })),
         };
       case 'setFunctionBreakpoints':
-        return { breakpoints: (args.breakpoints ?? []).map(() => ({ id: this.nextBpId++, verified: !this.connected })) };
+        return {
+          breakpoints: (args.breakpoints ?? []).map(() => ({ id: this.nextBpId++, verified: !this.connected })),
+        };
       case 'setExceptionBreakpoints':
         return { breakpoints: [] };
       case 'stackTrace': {
@@ -250,7 +276,13 @@ export class FakePhp {
           stackFrames: frames.map((f, depth) => {
             const id = this.nextFrameId++;
             this.frameOwner.set(id, { threadId: args.threadId, depth });
-            return { id, name: f.function ?? '{main}', source: { path: f.file, name: f.file.split('/').pop() }, line: f.line, column: 1 };
+            return {
+              id,
+              name: f.function ?? '{main}',
+              source: { path: f.file, name: f.file.split('/').pop() },
+              line: f.line,
+              column: 1,
+            };
           }),
           totalFrames: 1 + (stop.callers?.length ?? 0),
         };
@@ -267,7 +299,8 @@ export class FakePhp {
         const owner = this.frameOwner.get(args.frameId);
         const stop = owner ? this.currentStop(owner.threadId) : undefined;
         const scopes = [];
-        if (stop?.exception) scopes.push({ name: stop.exception.exceptionId.split('\\').pop(), variablesReference: this.ref([]) });
+        if (stop?.exception)
+          scopes.push({ name: stop.exception.exceptionId.split('\\').pop(), variablesReference: this.ref([]) });
         scopes.push({ name: 'Locals', variablesReference: this.ref(stop?.locals ?? []) });
         scopes.push({ name: 'Superglobals', variablesReference: this.ref(stop?.superglobals ?? []) });
         return { scopes };

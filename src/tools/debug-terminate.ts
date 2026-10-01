@@ -5,9 +5,7 @@ export const debugTerminateDescription = `Terminate the current PHP debug sessio
 
 Call this when you are done debugging or want to restart with a fresh session. After termination, you can call debug_launch again to start a new session.`;
 
-export async function handleDebugTerminate(
-  session: SessionManager,
-): Promise<ToolResult> {
+export async function handleDebugTerminate(session: SessionManager): Promise<ToolResult> {
   try {
     await session.terminate();
     return successResult({

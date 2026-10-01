@@ -14,7 +14,11 @@ import { debugNextSchema, debugNextDescription, handleDebugNext } from './debug-
 import { debugStepInSchema, debugStepInDescription, handleDebugStepIn } from './debug-step-in.js';
 import { debugStepOutSchema, debugStepOutDescription, handleDebugStepOut } from './debug-step-out.js';
 import { debugPauseSchema, debugPauseDescription, handleDebugPause } from './debug-pause.js';
-import { debugSetBreakpointsSchema, debugSetBreakpointsDescription, handleDebugSetBreakpoints } from './debug-set-breakpoints.js';
+import {
+  debugSetBreakpointsSchema,
+  debugSetBreakpointsDescription,
+  handleDebugSetBreakpoints,
+} from './debug-set-breakpoints.js';
 import {
   debugSetFunctionBreakpointsSchema,
   debugSetFunctionBreakpointsDescription,
@@ -32,7 +36,11 @@ import { debugScopesSchema, debugScopesDescription, handleDebugScopes } from './
 import { debugSetVariableSchema, debugSetVariableDescription, handleDebugSetVariable } from './debug-set-variable.js';
 import { debugSourceSchema, debugSourceDescription, handleDebugSource } from './debug-source.js';
 import { debugThreadsSchema, debugThreadsDescription, handleDebugThreads } from './debug-threads.js';
-import { debugExceptionInfoSchema, debugExceptionInfoDescription, handleDebugExceptionInfo } from './debug-exception-info.js';
+import {
+  debugExceptionInfoSchema,
+  debugExceptionInfoDescription,
+  handleDebugExceptionInfo,
+} from './debug-exception-info.js';
 import {
   debugImportIdeBreakpointsSchema,
   debugImportIdeBreakpointsDescription,
@@ -40,7 +48,11 @@ import {
 } from './debug-import-ide-breakpoints.js';
 import { debugWaitSchema, debugWaitDescription, handleDebugWait } from './debug-wait.js';
 import { debugSnapshotSchema, debugSnapshotDescription, handleDebugSnapshot } from './debug-snapshot.js';
-import { debugPlanValidateSchema, debugPlanValidateDescription, handleDebugPlanValidate } from './debug-plan-validate.js';
+import {
+  debugPlanValidateSchema,
+  debugPlanValidateDescription,
+  handleDebugPlanValidate,
+} from './debug-plan-validate.js';
 import { debugPlanRunSchema, debugPlanRunDescription, handleDebugPlanRun } from './debug-plan-run.js';
 import { debugPlanReportSchema, debugPlanReportDescription, handleDebugPlanReport } from './debug-plan-report.js';
 
@@ -67,6 +79,8 @@ export interface ToolDefinition {
   description: string;
   /** Input schema; undefined for tools that take no arguments. */
   schema?: ZodObject<ZodRawShape>;
+  // Args are validated against `schema` before run(); each entry forwards them to its typed handler.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   run(session: SessionManager, args: any, ctx: ToolContext): Promise<ToolResult> | ToolResult;
 }
 
@@ -105,11 +119,36 @@ export function coreToolDefinitions(opts: CoreToolOptions = {}): ToolDefinition[
       description: debugStatusDescription,
       run: (s) => handleDebugStatus(s, { includeLedgerTools: opts.includeLedgerTools }),
     },
-    { name: 'debug_continue', description: debugContinueDescription, schema: debugContinueSchema, run: (s, a) => handleDebugContinue(s, a) },
-    { name: 'debug_next', description: debugNextDescription, schema: debugNextSchema, run: (s, a) => handleDebugNext(s, a) },
-    { name: 'debug_step_in', description: debugStepInDescription, schema: debugStepInSchema, run: (s, a) => handleDebugStepIn(s, a) },
-    { name: 'debug_step_out', description: debugStepOutDescription, schema: debugStepOutSchema, run: (s, a) => handleDebugStepOut(s, a) },
-    { name: 'debug_pause', description: debugPauseDescription, schema: debugPauseSchema, run: (s, a) => handleDebugPause(s, a) },
+    {
+      name: 'debug_continue',
+      description: debugContinueDescription,
+      schema: debugContinueSchema,
+      run: (s, a) => handleDebugContinue(s, a),
+    },
+    {
+      name: 'debug_next',
+      description: debugNextDescription,
+      schema: debugNextSchema,
+      run: (s, a) => handleDebugNext(s, a),
+    },
+    {
+      name: 'debug_step_in',
+      description: debugStepInDescription,
+      schema: debugStepInSchema,
+      run: (s, a) => handleDebugStepIn(s, a),
+    },
+    {
+      name: 'debug_step_out',
+      description: debugStepOutDescription,
+      schema: debugStepOutSchema,
+      run: (s, a) => handleDebugStepOut(s, a),
+    },
+    {
+      name: 'debug_pause',
+      description: debugPauseDescription,
+      schema: debugPauseSchema,
+      run: (s, a) => handleDebugPause(s, a),
+    },
     {
       name: 'debug_set_breakpoints',
       description: debugSetBreakpointsDescription,
@@ -128,23 +167,48 @@ export function coreToolDefinitions(opts: CoreToolOptions = {}): ToolDefinition[
       schema: debugSetExceptionBreakpointsSchema,
       run: (s, a) => handleDebugSetExceptionBreakpoints(s, a),
     },
-    { name: 'debug_evaluate', description: debugEvaluateDescription, schema: debugEvaluateSchema, run: (s, a) => handleDebugEvaluate(s, a) },
-    { name: 'debug_variables', description: debugVariablesDescription, schema: debugVariablesSchema, run: (s, a) => handleDebugVariables(s, a) },
+    {
+      name: 'debug_evaluate',
+      description: debugEvaluateDescription,
+      schema: debugEvaluateSchema,
+      run: (s, a) => handleDebugEvaluate(s, a),
+    },
+    {
+      name: 'debug_variables',
+      description: debugVariablesDescription,
+      schema: debugVariablesSchema,
+      run: (s, a) => handleDebugVariables(s, a),
+    },
     {
       name: 'debug_stack_trace',
       description: debugStackTraceDescription,
       schema: debugStackTraceSchema,
       run: (s, a) => handleDebugStackTrace(s, a),
     },
-    { name: 'debug_scopes', description: debugScopesDescription, schema: debugScopesSchema, run: (s, a) => handleDebugScopes(s, a) },
+    {
+      name: 'debug_scopes',
+      description: debugScopesDescription,
+      schema: debugScopesSchema,
+      run: (s, a) => handleDebugScopes(s, a),
+    },
     {
       name: 'debug_set_variable',
       description: debugSetVariableDescription,
       schema: debugSetVariableSchema,
       run: (s, a) => handleDebugSetVariable(s, a),
     },
-    { name: 'debug_source', description: debugSourceDescription, schema: debugSourceSchema, run: (s, a) => handleDebugSource(s, a) },
-    { name: 'debug_threads', description: debugThreadsDescription, schema: debugThreadsSchema, run: (s) => handleDebugThreads(s) },
+    {
+      name: 'debug_source',
+      description: debugSourceDescription,
+      schema: debugSourceSchema,
+      run: (s, a) => handleDebugSource(s, a),
+    },
+    {
+      name: 'debug_threads',
+      description: debugThreadsDescription,
+      schema: debugThreadsSchema,
+      run: (s) => handleDebugThreads(s),
+    },
     {
       name: 'debug_exception_info',
       description: debugExceptionInfoDescription,
@@ -192,7 +256,11 @@ export interface PlanToolOptions {
 /** debug_plan_validate, debug_plan_run and debug_plan_report. */
 export function planToolDefinitions(opts: PlanToolOptions): ToolDefinition[] {
   const invokerFor = opts.invokerFor ?? ((session: SessionManager) => new InProcessInvoker(session));
-  const base = { baseDir: opts.baseDir, surface: opts.surface ?? ('mcp' as const), allowCommandTrigger: opts.allowCommandTrigger };
+  const base = {
+    baseDir: opts.baseDir,
+    surface: opts.surface ?? ('mcp' as const),
+    allowCommandTrigger: opts.allowCommandTrigger,
+  };
   // What a run can call is what validation must check against.
   const runnableTools = new Set(coreToolDefinitions().map((d) => d.name));
   return [

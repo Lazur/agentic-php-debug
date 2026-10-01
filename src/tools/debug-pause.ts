@@ -6,7 +6,11 @@ import { toolError } from './errors.js';
 import { resolveRunningThreadId } from './thread-resolution.js';
 
 export const debugPauseSchema = z.object({
-  threadId: z.number().int().optional().describe('Thread ID to pause. Defaults to the sole live connection when exactly one is running.'),
+  threadId: z
+    .number()
+    .int()
+    .optional()
+    .describe('Thread ID to pause. Defaults to the sole live connection when exactly one is running.'),
 });
 
 export type DebugPauseInput = z.infer<typeof debugPauseSchema>;
@@ -44,7 +48,7 @@ export async function handleDebugPause(
         live.length === 0
           ? 'threadId is required — no Xdebug connection is live. Call debug_status to see session state.'
           : `threadId is required — ${live.length} connections are live (${live.join(', ')}). ` +
-            'Call debug_threads and pass one explicitly.',
+              'Call debug_threads and pass one explicitly.',
         ErrorCodes.INVALID_PARAMS,
       );
     }
@@ -60,9 +64,9 @@ export async function handleDebugPause(
     if (message.includes(PAUSE_UNSUPPORTED_MESSAGE)) {
       return errorResult(
         `${message}. Xdebug implements pause only through its control socket, which needs Linux or ` +
-        'Windows with Xdebug >= 3.5.0 — on macOS it is never available. Reach a stop another way: ' +
-        'set a breakpoint with debug_set_breakpoints, or break on throw with ' +
-        'debug_set_exception_breakpoints, then call debug_wait.',
+          'Windows with Xdebug >= 3.5.0 — on macOS it is never available. Reach a stop another way: ' +
+          'set a breakpoint with debug_set_breakpoints, or break on throw with ' +
+          'debug_set_exception_breakpoints, then call debug_wait.',
         ErrorCodes.PAUSE_UNSUPPORTED,
       );
     }

@@ -112,7 +112,18 @@ describe('Property 6: DAP sequence number monotonicity', () => {
       fc.asyncProperty(
         // Generate a list of 1-20 arbitrary DAP command names
         fc.array(
-          fc.constantFrom('evaluate', 'variables', 'stackTrace', 'scopes', 'threads', 'continue', 'next', 'stepIn', 'stepOut', 'pause'),
+          fc.constantFrom(
+            'evaluate',
+            'variables',
+            'stackTrace',
+            'scopes',
+            'threads',
+            'continue',
+            'next',
+            'stepIn',
+            'stepOut',
+            'pause',
+          ),
           { minLength: 1, maxLength: 20 },
         ),
         async (commands) => {
@@ -143,7 +154,6 @@ describe('Property 6: DAP sequence number monotonicity', () => {
   });
 });
 
-
 describe('DAPClient unit tests (Task 5.5)', () => {
   /**
    * Test initialize → launch → configurationDone sequence with mock process.
@@ -158,11 +168,7 @@ describe('DAPClient unit tests (Task 5.5)', () => {
     await client.launch({ noDebug: false } as any);
     await client.configurationDone();
 
-    expect(capturedMessages.map(m => m.command)).toEqual([
-      'initialize',
-      'launch',
-      'configurationDone',
-    ]);
+    expect(capturedMessages.map((m) => m.command)).toEqual(['initialize', 'launch', 'configurationDone']);
 
     await client.disconnect();
   });
@@ -181,7 +187,7 @@ describe('DAPClient unit tests (Task 5.5)', () => {
 
     await client.disconnect();
 
-    expect(capturedMessages.some(m => m.command === 'disconnect')).toBe(true);
+    expect(capturedMessages.some((m) => m.command === 'disconnect')).toBe(true);
     expect(client.isAlive()).toBe(false);
   });
 
@@ -195,8 +201,11 @@ describe('DAPClient unit tests (Task 5.5)', () => {
       responder: (req) => {
         if (req.command === 'initialize') {
           return {
-            seq: 0, type: 'response', request_seq: req.seq,
-            command: 'initialize', success: true,
+            seq: 0,
+            type: 'response',
+            request_seq: req.seq,
+            command: 'initialize',
+            success: true,
             body: { supportsConfigurationDoneRequest: true },
           };
         }
@@ -227,9 +236,7 @@ describe('DAPClient unit tests (Task 5.5)', () => {
   it('throws when sending a request before initialize', async () => {
     const client = new DAPClient('/nonexistent/adapter.js');
 
-    await expect(client.sendRequest('evaluate', {})).rejects.toThrow(
-      /not running/,
-    );
+    await expect(client.sendRequest('evaluate', {})).rejects.toThrow(/not running/);
   });
 
   /**
@@ -241,15 +248,21 @@ describe('DAPClient unit tests (Task 5.5)', () => {
       responder: (req) => {
         if (req.command === 'initialize') {
           return {
-            seq: 0, type: 'response', request_seq: req.seq,
-            command: 'initialize', success: true,
+            seq: 0,
+            type: 'response',
+            request_seq: req.seq,
+            command: 'initialize',
+            success: true,
             body: { supportsConfigurationDoneRequest: true },
           };
         }
         // Return a failure response for everything else
         return {
-          seq: 0, type: 'response', request_seq: req.seq,
-          command: req.command, success: false,
+          seq: 0,
+          type: 'response',
+          request_seq: req.seq,
+          command: req.command,
+          success: false,
           message: `Cannot ${req.command}: session not paused`,
         };
       },
@@ -259,13 +272,14 @@ describe('DAPClient unit tests (Task 5.5)', () => {
 
     await client.initialize();
 
-    await expect(client.sendRequest('evaluate', { expression: '$x' }))
-      .rejects.toThrow('Cannot evaluate: session not paused');
+    await expect(client.sendRequest('evaluate', { expression: '$x' })).rejects.toThrow(
+      'Cannot evaluate: session not paused',
+    );
 
     await client.disconnect();
   });
 
-  it('preserves the adapter\'s structured body.error on a failed response', async () => {
+  it("preserves the adapter's structured body.error on a failed response", async () => {
     // vscode-php-debug puts a DBGP error code in body.error.id
     // (phpDebug.ts:893-910). Discarding the envelope collapsed every adapter
     // failure into one opaque string.
@@ -273,13 +287,20 @@ describe('DAPClient unit tests (Task 5.5)', () => {
       responder: (req) => {
         if (req.command === 'initialize') {
           return {
-            seq: 0, type: 'response', request_seq: req.seq,
-            command: 'initialize', success: true, body: {},
+            seq: 0,
+            type: 'response',
+            request_seq: req.seq,
+            command: 'initialize',
+            success: true,
+            body: {},
           };
         }
         return {
-          seq: 0, type: 'response', request_seq: req.seq,
-          command: req.command, success: false,
+          seq: 0,
+          type: 'response',
+          request_seq: req.seq,
+          command: req.command,
+          success: false,
           message: 'Error evaluating code',
           body: { error: { id: 206, format: 'Error evaluating code', showUser: true } },
         };
@@ -303,13 +324,20 @@ describe('DAPClient unit tests (Task 5.5)', () => {
       responder: (req) => {
         if (req.command === 'initialize') {
           return {
-            seq: 0, type: 'response', request_seq: req.seq,
-            command: 'initialize', success: true, body: {},
+            seq: 0,
+            type: 'response',
+            request_seq: req.seq,
+            command: 'initialize',
+            success: true,
+            body: {},
           };
         }
         return {
-          seq: 0, type: 'response', request_seq: req.seq,
-          command: req.command, success: false,
+          seq: 0,
+          type: 'response',
+          request_seq: req.seq,
+          command: req.command,
+          success: false,
           body: { error: { id: 301, format: 'Stack depth {d} invalid', variables: { d: '9' } } },
         };
       },
@@ -317,8 +345,7 @@ describe('DAPClient unit tests (Task 5.5)', () => {
     const client = new DAPClient('/fake/adapter.js', { spawn: () => mockProc });
     await client.initialize();
 
-    await expect(client.sendRequest('scopes', { frameId: 9 }))
-      .rejects.toThrow('Stack depth 9 invalid');
+    await expect(client.sendRequest('scopes', { frameId: 9 })).rejects.toThrow('Stack depth 9 invalid');
 
     await client.disconnect();
   });
@@ -408,6 +435,8 @@ describe('DAPClient adapter lifecycle', () => {
   });
 
   it('a crash while listening ends the session and wakes a blocked debug_wait', async () => {
+    // let, not const: the responder closure needs it before the mock exists.
+    // eslint-disable-next-line prefer-const
     let stdout!: PassThrough;
     const mock = createMockProcess({
       responder: (req) => {
@@ -425,7 +454,13 @@ describe('DAPClient adapter lifecycle', () => {
       sendLog: vi.fn(async () => {}),
       sendDebugEvent: async () => {},
     };
-    const config = { adapterPath: '/fake/adapter.js', port: 9003, hostname: '127.0.0.1', stopOnEntry: false, pathMappings: {} } as unknown as Config;
+    const config = {
+      adapterPath: '/fake/adapter.js',
+      port: 9003,
+      hostname: '127.0.0.1',
+      stopOnEntry: false,
+      pathMappings: {},
+    } as unknown as Config;
     const pathMapper = { toRemote: (p: string) => p, toLocal: (p: string) => p } as PathMapper;
     const session = new SessionManager(config, client, pathMapper, notifier);
 

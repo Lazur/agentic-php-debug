@@ -8,10 +8,7 @@ export const debugPlanValidateSchema = z.object({
     .record(z.string(), z.unknown())
     .optional()
     .describe('The plan object to check. Its format is the input schema of debug_plan_run.'),
-  path: z
-    .string()
-    .optional()
-    .describe('Path of a *.debugplan.json file to check instead of an inline plan'),
+  path: z.string().optional().describe('Path of a *.debugplan.json file to check instead of an inline plan'),
 });
 
 export type DebugPlanValidateInput = z.infer<typeof debugPlanValidateSchema>;

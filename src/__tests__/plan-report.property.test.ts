@@ -1,6 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
-import { compareToGolden, diffJson, evaluateExpectations, normalizeReport, type PlanRunReport, type StopRecord } from '../plan/report.js';
+import {
+  compareToGolden,
+  diffJson,
+  evaluateExpectations,
+  normalizeReport,
+  type PlanRunReport,
+  type StopRecord,
+} from '../plan/report.js';
 import { Redactor } from '../plan/redact.js';
 import { DebugPlanSchema } from '../plan/schema.js';
 import { canonicalJson, PLAN_DEFAULTS } from '../plan/validate.js';
@@ -21,8 +28,18 @@ const stopArb: fc.Arbitrary<StopRecord> = fc.record({
   captured: fc.boolean(),
   reason: fc.constantFrom('breakpoint', 'exception'),
   threadId: fc.integer({ min: 1, max: 9 }),
-  location: fc.record({ file: fc.constantFrom(`${ROOT}/src/Cart.php`, '/vendor/lib.php'), line: fc.integer({ min: 1, max: 500 }) }),
-  frames: fc.array(fc.record({ index: fc.nat({ max: 5 }), file: fc.constant(`${ROOT}/src/Cart.php`), line: fc.integer({ min: 1, max: 500 }) }), { maxLength: 3 }),
+  location: fc.record({
+    file: fc.constantFrom(`${ROOT}/src/Cart.php`, '/vendor/lib.php'),
+    line: fc.integer({ min: 1, max: 500 }),
+  }),
+  frames: fc.array(
+    fc.record({
+      index: fc.nat({ max: 5 }),
+      file: fc.constant(`${ROOT}/src/Cart.php`),
+      line: fc.integer({ min: 1, max: 500 }),
+    }),
+    { maxLength: 3 },
+  ),
   evaluate: fc.dictionary(fc.constantFrom('$a', '$b', 'microtime(true)'), valueArb),
   at: fc.nat(),
 });
@@ -47,7 +64,18 @@ const reportArb: fc.Arbitrary<PlanRunReport> = fc.record({
   warnings: fc.constant([]),
 });
 
-const VOLATILE_KEYS = ['runId', 'startedAt', 'durationMs', 'phases', 'env', 'surface', 'at', 'threadId', 'id', 'output'];
+const VOLATILE_KEYS = [
+  'runId',
+  'startedAt',
+  'durationMs',
+  'phases',
+  'env',
+  'surface',
+  'at',
+  'threadId',
+  'id',
+  'output',
+];
 
 function keysDeep(v: unknown, out = new Set<string>()): Set<string> {
   if (Array.isArray(v)) v.forEach((x) => keysDeep(x, out));
@@ -93,15 +121,18 @@ describe('normalizeReport (property)', () => {
 
   it('keeps real behavioural differences visible', () => {
     fc.assert(
-      fc.property(reportArb.filter((r) => r.stops.length > 0), (report) => {
-        const changed: PlanRunReport = {
-          ...report,
-          stops: report.stops.map((s, i) => (i === 0 ? { ...s, hit: s.hit + 1 } : s)),
-        };
-        const cmp = compareToGolden(normalizeReport(changed), normalizeReport(report));
-        expect(cmp.equal).toBe(false);
-        expect(cmp.diffs[0]).toContain('.hit');
-      }),
+      fc.property(
+        reportArb.filter((r) => r.stops.length > 0),
+        (report) => {
+          const changed: PlanRunReport = {
+            ...report,
+            stops: report.stops.map((s, i) => (i === 0 ? { ...s, hit: s.hit + 1 } : s)),
+          };
+          const cmp = compareToGolden(normalizeReport(changed), normalizeReport(report));
+          expect(cmp.equal).toBe(false);
+          expect(cmp.diffs[0]).toContain('.hit');
+        },
+      ),
     );
   });
 });

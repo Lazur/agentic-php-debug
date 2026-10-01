@@ -4,9 +4,14 @@ import { SessionState } from '../session.js';
 import { successResult, errorResult, ErrorCodes, type ToolResult } from './types.js';
 import { toolError } from './errors.js';
 import { ambiguousThreadNote, resolveStoppedThreadId } from './thread-resolution.js';
+import type { DebugProtocol } from '@vscode/debugprotocol';
 
 export const debugStackTraceSchema = z.object({
-  threadId: z.number().int().optional().describe('Thread ID to get the stack trace for. Defaults to the currently stopped thread.'),
+  threadId: z
+    .number()
+    .int()
+    .optional()
+    .describe('Thread ID to get the stack trace for. Defaults to the currently stopped thread.'),
   startFrame: z.number().int().optional().describe('Start frame index for paged results'),
   levels: z.number().int().optional().describe('Maximum number of frames to return'),
 });
@@ -38,16 +43,18 @@ export async function handleDebugStackTrace(
     if (args.startFrame !== undefined) dapArgs.startFrame = args.startFrame;
     if (args.levels !== undefined) dapArgs.levels = args.levels;
 
-    const response = await session.dapClient.sendRequest('stackTrace', dapArgs);
-    const body = (response as any).body;
-    const stackFrames = (body?.stackFrames ?? []).map((frame: any) => ({
+    const response = await session.dapClient.sendRequest<DebugProtocol.StackTraceResponse>('stackTrace', dapArgs);
+    const body = response.body;
+    const stackFrames = (body?.stackFrames ?? []).map((frame) => ({
       id: frame.id,
       name: frame.name,
-      source: frame.source ? {
-        name: frame.source.name,
-        path: frame.source.path ? session.pathMapper.toLocal(frame.source.path) : undefined,
-        sourceReference: frame.source.sourceReference,
-      } : undefined,
+      source: frame.source
+        ? {
+            name: frame.source.name,
+            path: frame.source.path ? session.pathMapper.toLocal(frame.source.path) : undefined,
+            sourceReference: frame.source.sourceReference,
+          }
+        : undefined,
       line: frame.line,
       column: frame.column,
       endLine: frame.endLine,
@@ -57,7 +64,7 @@ export async function handleDebugStackTrace(
     // DAP: object references live only for the current suspended state. Record
     // what we hand out so a later reuse can be rejected instead of silently
     // resolving against a different stack.
-    session.noteIssuedFrameIds(stackFrames.map((f: any) => f.id));
+    session.noteIssuedFrameIds(stackFrames.map((f) => f.id));
 
     return successResult({
       ...(resolved.ambiguous ? { warning: ambiguousThreadNote(session, resolved.threadId) } : {}),

@@ -99,7 +99,7 @@ describe('resume state — races the epoch guard must survive', () => {
     expect(session.state).toBe(SessionState.Paused);
   });
 
-  it('drops the concluded suspension\'s stopped, but keeps events still true', async () => {
+  it("drops the concluded suspension's stopped, but keeps events still true", async () => {
     // Flow with no debug_wait in it: stopped -> stack_trace -> continue. The
     // buffered stop would otherwise be replayed as though it were new. The
     // buffered `thread` event is a different matter — that thread really did

@@ -91,56 +91,48 @@ describe('Property 1: Already-paused immediate return', () => {
    */
   it('returns immediately with already_paused for any paused session', async () => {
     await fc.assert(
-      fc.asyncProperty(
-        arbStopInfo,
-        fc.integer({ min: 1, max: 120_000 }),
-        async (stopInfo, timeout) => {
-          const { client } = createMockBackend();
-          const session = new SessionManager(stubConfig(), client as any, stubPathMapper(), stubNotifier());
+      fc.asyncProperty(arbStopInfo, fc.integer({ min: 1, max: 120_000 }), async (stopInfo, timeout) => {
+        const { client } = createMockBackend();
+        const session = new SessionManager(stubConfig(), client as any, stubPathMapper(), stubNotifier());
 
-          // Launch to register event handlers, then simulate paused state
-          await session.launch();
-          // Fire stopped event to transition to Paused with the generated stopInfo
-          const stoppedEvent: DebugProtocol.Event = {
-            seq: 0,
-            type: 'event',
-            event: 'stopped',
-            body: stopInfo,
-          };
-          const stoppedHandlers = (client.onEvent as any).mock.calls
-            .filter((c: any[]) => c[0] === 'stopped')
-            .map((c: any[]) => c[1]);
-          for (const h of stoppedHandlers) h(stoppedEvent);
+        // Launch to register event handlers, then simulate paused state
+        await session.launch();
+        // Fire stopped event to transition to Paused with the generated stopInfo
+        const stoppedEvent: DebugProtocol.Event = {
+          seq: 0,
+          type: 'event',
+          event: 'stopped',
+          body: stopInfo,
+        };
+        const stoppedHandlers = (client.onEvent as any).mock.calls
+          .filter((c: any[]) => c[0] === 'stopped')
+          .map((c: any[]) => c[1]);
+        for (const h of stoppedHandlers) h(stoppedEvent);
 
-          // Verify session is paused
-          expect(session.state).toBe(SessionState.Paused);
+        // Verify session is paused
+        expect(session.state).toBe(SessionState.Paused);
 
-          const result = await handleDebugWait(session, { timeout });
+        const result = await handleDebugWait(session, { timeout });
 
-          // Must be a success result
-          expect(result.success).toBe(true);
+        // Must be a success result
+        expect(result.success).toBe(true);
 
-          const data = result.data as any;
-          // reason must be 'already_paused' (Req 2.2)
-          expect(data.reason).toBe('already_paused');
-          // event and body must be null (Req 2.1 — no event listeners registered)
-          expect(data.event).toBeNull();
-          expect(data.body).toBeNull();
-          // status must reflect paused state
-          expect(data.status.state).toBe(SessionState.Paused);
-          expect(data.status.stopInfo).toBeDefined();
-          expect(data.status.stopInfo.reason).toBe(stopInfo.reason);
-          expect(data.status.stopInfo.threadId).toBe(stopInfo.threadId);
+        const data = result.data as any;
+        // reason must be 'already_paused' (Req 2.2)
+        expect(data.reason).toBe('already_paused');
+        // event and body must be null (Req 2.1 — no event listeners registered)
+        expect(data.event).toBeNull();
+        expect(data.body).toBeNull();
+        // status must reflect paused state
+        expect(data.status.state).toBe(SessionState.Paused);
+        expect(data.status.stopInfo).toBeDefined();
+        expect(data.status.stopInfo.reason).toBe(stopInfo.reason);
+        expect(data.status.stopInfo.threadId).toBe(stopInfo.threadId);
 
-          // No event listeners should have been registered by handleDebugWait
-          // (onEvent is called during launch, but not by handleDebugWait)
-          const onEventCallsBeforeWait = client.onEvent.mock.calls.length;
-          // handleDebugWait should not have added any new onEvent calls
-          // We already called handleDebugWait above, so check offEvent was never called
-          // (no listeners to clean up means offEvent shouldn't be called)
-          expect(client.offEvent).not.toHaveBeenCalled();
-        },
-      ),
+        // The session was already paused, so handleDebugWait registered no listeners
+        // and has none to clean up.
+        expect(client.offEvent).not.toHaveBeenCalled();
+      }),
       { numRuns: 100 },
     );
   }, 30000);
@@ -162,7 +154,7 @@ describe('Property 2: Event resolution correctness', () => {
       fc.asyncProperty(
         fc.constantFrom(...WAIT_EVENTS),
         fc.dictionary(
-          fc.string({ minLength: 1, maxLength: 10 }).filter(s => /^[a-zA-Z_]/.test(s)),
+          fc.string({ minLength: 1, maxLength: 10 }).filter((s) => /^[a-zA-Z_]/.test(s)),
           fc.oneof(fc.string({ maxLength: 20 }), fc.integer(), fc.boolean()),
           { minKeys: 0, maxKeys: 5 },
         ),
@@ -225,7 +217,6 @@ describe('Property 2: Event resolution correctness', () => {
   }, 30000);
 });
 
-
 describe('Property 3: First-event-wins', () => {
   /**
    * **Validates: Requirements 3.3**
@@ -264,10 +255,16 @@ describe('Property 3: First-event-wins', () => {
           const secondBody = buildBody(secondEventName, secondMarker);
 
           const firstDapEvent: DebugProtocol.Event = {
-            seq: 0, type: 'event', event: firstEventName, body: firstBody,
+            seq: 0,
+            type: 'event',
+            event: firstEventName,
+            body: firstBody,
           };
           const secondDapEvent: DebugProtocol.Event = {
-            seq: 1, type: 'event', event: secondEventName, body: secondBody,
+            seq: 1,
+            type: 'event',
+            event: secondEventName,
+            body: secondBody,
           };
 
           // Fire first event — all handlers for that event name
@@ -302,7 +299,6 @@ describe('Property 3: First-event-wins', () => {
   }, 30000);
 });
 
-
 describe('Property 4: Cleanup on all resolution paths', () => {
   /**
    * **Validates: Requirements 3.4, 4.4, 5.2, 8.1, 8.2, 8.3**
@@ -317,26 +313,25 @@ describe('Property 4: Cleanup on all resolution paths', () => {
 
   it('removes all listeners after event resolution', async () => {
     await fc.assert(
-      fc.asyncProperty(
-        fc.constantFrom(...WAIT_EVENTS),
-        async (eventName) => {
-          const { client, eventHandlers } = createMockBackend();
-          const session = new SessionManager(stubConfig(), client as any, stubPathMapper(), stubNotifier());
+      fc.asyncProperty(fc.constantFrom(...WAIT_EVENTS), async (eventName) => {
+        const { client, eventHandlers } = createMockBackend();
+        const session = new SessionManager(stubConfig(), client as any, stubPathMapper(), stubNotifier());
 
-          await session.launch();
+        await session.launch();
 
-          // Count onEvent calls before handleDebugWait
-          const onEventCallsBefore = client.onEvent.mock.calls.length;
+        // Count onEvent calls before handleDebugWait
+        const onEventCallsBefore = client.onEvent.mock.calls.length;
 
-          const waitPromise = handleDebugWait(session, { timeout: 60_000 });
+        const waitPromise = handleDebugWait(session, { timeout: 60_000 });
 
-          // handleDebugWait should have registered 5 listeners (one per WAIT_EVENT)
-          const onEventCallsAfter = client.onEvent.mock.calls.length;
-          const registeredCount = onEventCallsAfter - onEventCallsBefore;
-          expect(registeredCount).toBe(5);
+        // handleDebugWait should have registered 5 listeners (one per WAIT_EVENT)
+        const onEventCallsAfter = client.onEvent.mock.calls.length;
+        const registeredCount = onEventCallsAfter - onEventCallsBefore;
+        expect(registeredCount).toBe(5);
 
-          // Fire the event
-          const body = eventName === 'stopped'
+        // Fire the event
+        const body =
+          eventName === 'stopped'
             ? { reason: 'breakpoint', threadId: 1 }
             : eventName === 'thread'
               ? { reason: 'started', threadId: 1 }
@@ -344,37 +339,39 @@ describe('Property 4: Cleanup on all resolution paths', () => {
                 ? { exitCode: 0 }
                 : {};
 
-          const dapEvent: DebugProtocol.Event = {
-            seq: 0, type: 'event', event: eventName, body,
-          };
+        const dapEvent: DebugProtocol.Event = {
+          seq: 0,
+          type: 'event',
+          event: eventName,
+          body,
+        };
 
-          const handlers = [...(eventHandlers.get(eventName) ?? [])];
-          for (const h of handlers) h(dapEvent);
+        const handlers = [...(eventHandlers.get(eventName) ?? [])];
+        for (const h of handlers) h(dapEvent);
 
-          await waitPromise;
+        await waitPromise;
 
-          // offEvent must have been called exactly 5 times (once per WAIT_EVENT) (Req 8.1)
-          expect(client.offEvent).toHaveBeenCalledTimes(5);
+        // offEvent must have been called exactly 5 times (once per WAIT_EVENT) (Req 8.1)
+        expect(client.offEvent).toHaveBeenCalledTimes(5);
 
-          // All 5 WAIT_EVENTS must have had their listener removed
-          const removedEvents = client.offEvent.mock.calls.map((c: any[]) => c[0]);
-          for (const ev of WAIT_EVENTS) {
-            expect(removedEvents).toContain(ev);
-          }
+        // All 5 WAIT_EVENTS must have had their listener removed
+        const removedEvents = client.offEvent.mock.calls.map((c: any[]) => c[0]);
+        for (const ev of WAIT_EVENTS) {
+          expect(removedEvents).toContain(ev);
+        }
 
-          // The handleDebugWait listeners should no longer be in the eventHandlers map
-          // (only session's own handlers should remain)
-          for (const ev of WAIT_EVENTS) {
-            const remaining = eventHandlers.get(ev) ?? [];
-            // Session registers its own handlers during launch; handleDebugWait's should be gone
-            for (const call of client.offEvent.mock.calls) {
-              if (call[0] === ev) {
-                expect(remaining).not.toContain(call[1]);
-              }
+        // The handleDebugWait listeners should no longer be in the eventHandlers map
+        // (only session's own handlers should remain)
+        for (const ev of WAIT_EVENTS) {
+          const remaining = eventHandlers.get(ev) ?? [];
+          // Session registers its own handlers during launch; handleDebugWait's should be gone
+          for (const call of client.offEvent.mock.calls) {
+            if (call[0] === ev) {
+              expect(remaining).not.toContain(call[1]);
             }
           }
-        },
-      ),
+        }
+      }),
       { numRuns: 100 },
     );
   }, 30000);
@@ -383,33 +380,30 @@ describe('Property 4: Cleanup on all resolution paths', () => {
     vi.useFakeTimers();
     try {
       await fc.assert(
-        fc.asyncProperty(
-          fc.integer({ min: 1, max: 5000 }),
-          async (timeout) => {
-            const { client } = createMockBackend();
-            const session = new SessionManager(stubConfig(), client as any, stubPathMapper(), stubNotifier());
+        fc.asyncProperty(fc.integer({ min: 1, max: 5000 }), async (timeout) => {
+          const { client } = createMockBackend();
+          const session = new SessionManager(stubConfig(), client as any, stubPathMapper(), stubNotifier());
 
-            await session.launch();
-            client.offEvent.mockClear();
+          await session.launch();
+          client.offEvent.mockClear();
 
-            const waitPromise = handleDebugWait(session, { timeout });
+          const waitPromise = handleDebugWait(session, { timeout });
 
-            // Advance time past the timeout
-            vi.advanceTimersByTime(timeout + 1);
+          // Advance time past the timeout
+          vi.advanceTimersByTime(timeout + 1);
 
-            const result = await waitPromise;
-            const data = result.data as any;
-            expect(data.reason).toBe('timeout');
+          const result = await waitPromise;
+          const data = result.data as any;
+          expect(data.reason).toBe('timeout');
 
-            // offEvent must have been called exactly 5 times (Req 4.4, 8.1)
-            expect(client.offEvent).toHaveBeenCalledTimes(5);
+          // offEvent must have been called exactly 5 times (Req 4.4, 8.1)
+          expect(client.offEvent).toHaveBeenCalledTimes(5);
 
-            const removedEvents = client.offEvent.mock.calls.map((c: any[]) => c[0]);
-            for (const ev of WAIT_EVENTS) {
-              expect(removedEvents).toContain(ev);
-            }
-          },
-        ),
+          const removedEvents = client.offEvent.mock.calls.map((c: any[]) => c[0]);
+          for (const ev of WAIT_EVENTS) {
+            expect(removedEvents).toContain(ev);
+          }
+        }),
         { numRuns: 100 },
       );
     } finally {
@@ -419,40 +413,39 @@ describe('Property 4: Cleanup on all resolution paths', () => {
 
   it('removes all listeners after cancellation resolution', async () => {
     await fc.assert(
-      fc.asyncProperty(
-        fc.integer({ min: 1000, max: 60_000 }),
-        async (timeout) => {
-          const { client } = createMockBackend();
-          const session = new SessionManager(stubConfig(), client as any, stubPathMapper(), stubNotifier());
+      fc.asyncProperty(fc.integer({ min: 1000, max: 60_000 }), async (timeout) => {
+        const { client } = createMockBackend();
+        const session = new SessionManager(stubConfig(), client as any, stubPathMapper(), stubNotifier());
 
-          await session.launch();
-          client.offEvent.mockClear();
+        await session.launch();
+        client.offEvent.mockClear();
 
-          let abortCb: (() => void) | undefined;
-          const signal = {
-            aborted: false,
-            onAbort(cb: () => void) { abortCb = cb; },
-          };
+        let abortCb: (() => void) | undefined;
+        const signal = {
+          aborted: false,
+          onAbort(cb: () => void) {
+            abortCb = cb;
+          },
+        };
 
-          const waitPromise = handleDebugWait(session, { timeout }, signal);
+        const waitPromise = handleDebugWait(session, { timeout }, signal);
 
-          // Trigger cancellation
-          signal.aborted = true;
-          abortCb!();
+        // Trigger cancellation
+        signal.aborted = true;
+        abortCb!();
 
-          const result = await waitPromise;
-          const data = result.data as any;
-          expect(data.reason).toBe('cancelled');
+        const result = await waitPromise;
+        const data = result.data as any;
+        expect(data.reason).toBe('cancelled');
 
-          // offEvent must have been called exactly 5 times (Req 5.2, 8.1)
-          expect(client.offEvent).toHaveBeenCalledTimes(5);
+        // offEvent must have been called exactly 5 times (Req 5.2, 8.1)
+        expect(client.offEvent).toHaveBeenCalledTimes(5);
 
-          const removedEvents = client.offEvent.mock.calls.map((c: any[]) => c[0]);
-          for (const ev of WAIT_EVENTS) {
-            expect(removedEvents).toContain(ev);
-          }
-        },
-      ),
+        const removedEvents = client.offEvent.mock.calls.map((c: any[]) => c[0]);
+        for (const ev of WAIT_EVENTS) {
+          expect(removedEvents).toContain(ev);
+        }
+      }),
       { numRuns: 100 },
     );
   }, 30000);
@@ -474,16 +467,20 @@ describe('Property 4: Cleanup on all resolution paths', () => {
             const waitPromise = handleDebugWait(session, { timeout });
 
             // Fire event AND advance timer simultaneously
-            const body = eventName === 'stopped'
-              ? { reason: 'breakpoint', threadId: 1 }
-              : eventName === 'thread'
-                ? { reason: 'started', threadId: 1 }
-                : eventName === 'exited'
-                  ? { exitCode: 0 }
-                  : {};
+            const body =
+              eventName === 'stopped'
+                ? { reason: 'breakpoint', threadId: 1 }
+                : eventName === 'thread'
+                  ? { reason: 'started', threadId: 1 }
+                  : eventName === 'exited'
+                    ? { exitCode: 0 }
+                    : {};
 
             const dapEvent: DebugProtocol.Event = {
-              seq: 0, type: 'event', event: eventName, body,
+              seq: 0,
+              type: 'event',
+              event: eventName,
+              body,
             };
 
             const handlers = [...(eventHandlers.get(eventName) ?? [])];
@@ -507,8 +504,6 @@ describe('Property 4: Cleanup on all resolution paths', () => {
   }, 30000);
 });
 
-
-
 describe('Property 5: Timeout resolution', () => {
   /**
    * **Validates: Requirements 4.3, 7.3**
@@ -521,37 +516,34 @@ describe('Property 5: Timeout resolution', () => {
     vi.useFakeTimers();
     try {
       await fc.assert(
-        fc.asyncProperty(
-          fc.integer({ min: 1, max: 120_000 }),
-          async (timeout) => {
-            const { client } = createMockBackend();
-            const session = new SessionManager(stubConfig(), client as any, stubPathMapper(), stubNotifier());
+        fc.asyncProperty(fc.integer({ min: 1, max: 120_000 }), async (timeout) => {
+          const { client } = createMockBackend();
+          const session = new SessionManager(stubConfig(), client as any, stubPathMapper(), stubNotifier());
 
-            await session.launch();
-            expect(session.state).toBe(SessionState.Listening);
+          await session.launch();
+          expect(session.state).toBe(SessionState.Listening);
 
-            const waitPromise = handleDebugWait(session, { timeout });
+          const waitPromise = handleDebugWait(session, { timeout });
 
-            // Advance time past the timeout — no events fired, no cancellation
-            vi.advanceTimersByTime(timeout + 1);
+          // Advance time past the timeout — no events fired, no cancellation
+          vi.advanceTimersByTime(timeout + 1);
 
-            const result = await waitPromise;
+          const result = await waitPromise;
 
-            // Must be a success result
-            expect(result.success).toBe(true);
+          // Must be a success result
+          expect(result.success).toBe(true);
 
-            const data = result.data as any;
-            // reason must be 'timeout' (Req 4.3)
-            expect(data.reason).toBe('timeout');
-            // event must be null (Req 7.3)
-            expect(data.event).toBeNull();
-            // body must be null (Req 7.3)
-            expect(data.body).toBeNull();
-            // status must be present and reflect current session state
-            expect(data.status).toBeDefined();
-            expect(data.status.state).toBe(SessionState.Listening);
-          },
-        ),
+          const data = result.data as any;
+          // reason must be 'timeout' (Req 4.3)
+          expect(data.reason).toBe('timeout');
+          // event must be null (Req 7.3)
+          expect(data.event).toBeNull();
+          // body must be null (Req 7.3)
+          expect(data.body).toBeNull();
+          // status must be present and reflect current session state
+          expect(data.status).toBeDefined();
+          expect(data.status.state).toBe(SessionState.Listening);
+        }),
         { numRuns: 100 },
       );
     } finally {
@@ -559,7 +551,6 @@ describe('Property 5: Timeout resolution', () => {
     }
   }, 30000);
 });
-
 
 describe('Property 6: Cancellation resolution', () => {
   /**
@@ -572,94 +563,89 @@ describe('Property 6: Cancellation resolution', () => {
 
   it('resolves with cancelled reason when signal fires before any event or timeout', async () => {
     await fc.assert(
-      fc.asyncProperty(
-        fc.integer({ min: 1000, max: 120_000 }),
-        async (timeout) => {
-          const { client } = createMockBackend();
-          const session = new SessionManager(stubConfig(), client as any, stubPathMapper(), stubNotifier());
+      fc.asyncProperty(fc.integer({ min: 1000, max: 120_000 }), async (timeout) => {
+        const { client } = createMockBackend();
+        const session = new SessionManager(stubConfig(), client as any, stubPathMapper(), stubNotifier());
 
-          await session.launch();
-          expect(session.state).toBe(SessionState.Listening);
+        await session.launch();
+        expect(session.state).toBe(SessionState.Listening);
 
-          let abortCb: (() => void) | undefined;
-          const signal = {
-            aborted: false,
-            onAbort(cb: () => void) { abortCb = cb; },
-          };
+        let abortCb: (() => void) | undefined;
+        const signal = {
+          aborted: false,
+          onAbort(cb: () => void) {
+            abortCb = cb;
+          },
+        };
 
-          const waitPromise = handleDebugWait(session, { timeout }, signal);
+        const waitPromise = handleDebugWait(session, { timeout }, signal);
 
-          // Trigger cancellation before any event fires (Req 5.1)
-          signal.aborted = true;
-          abortCb!();
+        // Trigger cancellation before any event fires (Req 5.1)
+        signal.aborted = true;
+        abortCb!();
 
-          const result = await waitPromise;
+        const result = await waitPromise;
 
-          expect(result.success).toBe(true);
+        expect(result.success).toBe(true);
 
-          const data = result.data as any;
-          // reason must be 'cancelled' (Req 5.1)
-          expect(data.reason).toBe('cancelled');
-          // event must be null (Req 7.3)
-          expect(data.event).toBeNull();
-          // body must be null (Req 7.3)
-          expect(data.body).toBeNull();
-          // status must be present and reflect current session state
-          expect(data.status).toBeDefined();
-          expect(data.status.state).toBeDefined();
-        },
-      ),
+        const data = result.data as any;
+        // reason must be 'cancelled' (Req 5.1)
+        expect(data.reason).toBe('cancelled');
+        // event must be null (Req 7.3)
+        expect(data.event).toBeNull();
+        // body must be null (Req 7.3)
+        expect(data.body).toBeNull();
+        // status must be present and reflect current session state
+        expect(data.status).toBeDefined();
+        expect(data.status.state).toBeDefined();
+      }),
       { numRuns: 100 },
     );
   }, 30000);
 
   it('returns immediately with cancelled when signal is already aborted at invocation time', async () => {
     await fc.assert(
-      fc.asyncProperty(
-        fc.integer({ min: 1, max: 120_000 }),
-        async (timeout) => {
-          const { client } = createMockBackend();
-          const session = new SessionManager(stubConfig(), client as any, stubPathMapper(), stubNotifier());
+      fc.asyncProperty(fc.integer({ min: 1, max: 120_000 }), async (timeout) => {
+        const { client } = createMockBackend();
+        const session = new SessionManager(stubConfig(), client as any, stubPathMapper(), stubNotifier());
 
-          await session.launch();
-          expect(session.state).toBe(SessionState.Listening);
+        await session.launch();
+        expect(session.state).toBe(SessionState.Listening);
 
-          // Signal already aborted before calling handleDebugWait (Req 5.3)
-          const signal = {
-            aborted: true,
-            onAbort: vi.fn(),
-          };
+        // Signal already aborted before calling handleDebugWait (Req 5.3)
+        const signal = {
+          aborted: true,
+          onAbort: vi.fn(),
+        };
 
-          const onEventCallsBefore = client.onEvent.mock.calls.length;
+        const onEventCallsBefore = client.onEvent.mock.calls.length;
 
-          const result = await handleDebugWait(session, { timeout }, signal);
+        const result = await handleDebugWait(session, { timeout }, signal);
 
-          expect(result.success).toBe(true);
+        expect(result.success).toBe(true);
 
-          const data = result.data as any;
-          // reason must be 'cancelled' (Req 5.3)
-          expect(data.reason).toBe('cancelled');
-          // event must be null (Req 7.3)
-          expect(data.event).toBeNull();
-          // body must be null (Req 7.3)
-          expect(data.body).toBeNull();
-          // status must be present
-          expect(data.status).toBeDefined();
-          expect(data.status.state).toBeDefined();
+        const data = result.data as any;
+        // reason must be 'cancelled' (Req 5.3)
+        expect(data.reason).toBe('cancelled');
+        // event must be null (Req 7.3)
+        expect(data.event).toBeNull();
+        // body must be null (Req 7.3)
+        expect(data.body).toBeNull();
+        // status must be present
+        expect(data.status).toBeDefined();
+        expect(data.status.state).toBeDefined();
 
-          // No event listeners should have been registered (immediate return)
-          const onEventCallsAfter = client.onEvent.mock.calls.length;
-          expect(onEventCallsAfter).toBe(onEventCallsBefore);
+        // No event listeners should have been registered (immediate return)
+        const onEventCallsAfter = client.onEvent.mock.calls.length;
+        expect(onEventCallsAfter).toBe(onEventCallsBefore);
 
-          // onAbort should not have been called (no need to register abort handler)
-          expect(signal.onAbort).not.toHaveBeenCalled();
-        },
-      ),
+        // onAbort should not have been called (no need to register abort handler)
+        expect(signal.onAbort).not.toHaveBeenCalled();
+      }),
       { numRuns: 100 },
     );
   }, 30000);
 });
-
 
 describe('Property 8: Timeout guidance existence', () => {
   /**
@@ -673,28 +659,25 @@ describe('Property 8: Timeout guidance existence', () => {
     try {
       // Test with Listening state (reachable via launch)
       await fc.assert(
-        fc.asyncProperty(
-          fc.integer({ min: 1, max: 5000 }),
-          async (timeout) => {
-            const { client } = createMockBackend();
-            const session = new SessionManager(stubConfig(), client as any, stubPathMapper(), stubNotifier());
+        fc.asyncProperty(fc.integer({ min: 1, max: 5000 }), async (timeout) => {
+          const { client } = createMockBackend();
+          const session = new SessionManager(stubConfig(), client as any, stubPathMapper(), stubNotifier());
 
-            await session.launch();
-            expect(session.state).toBe(SessionState.Listening);
+          await session.launch();
+          expect(session.state).toBe(SessionState.Listening);
 
-            const waitPromise = handleDebugWait(session, { timeout });
-            vi.advanceTimersByTime(timeout + 1);
+          const waitPromise = handleDebugWait(session, { timeout });
+          vi.advanceTimersByTime(timeout + 1);
 
-            const result = await waitPromise;
-            expect(result.success).toBe(true);
+          const result = await waitPromise;
+          expect(result.success).toBe(true);
 
-            const data = result.data as any;
-            expect(data.reason).toBe('timeout');
-            // guidance must be a non-empty string (Req 13.1)
-            expect(typeof data.guidance).toBe('string');
-            expect(data.guidance.length).toBeGreaterThan(0);
-          },
-        ),
+          const data = result.data as any;
+          expect(data.reason).toBe('timeout');
+          // guidance must be a non-empty string (Req 13.1)
+          expect(typeof data.guidance).toBe('string');
+          expect(data.guidance.length).toBeGreaterThan(0);
+        }),
         { numRuns: 100 },
       );
     } finally {
@@ -706,39 +689,36 @@ describe('Property 8: Timeout guidance existence', () => {
     vi.useFakeTimers();
     try {
       await fc.assert(
-        fc.asyncProperty(
-          fc.integer({ min: 1, max: 5000 }),
-          async (timeout) => {
-            const { client, eventHandlers } = createMockBackend();
-            const session = new SessionManager(stubConfig(), client as any, stubPathMapper(), stubNotifier());
+        fc.asyncProperty(fc.integer({ min: 1, max: 5000 }), async (timeout) => {
+          const { client, eventHandlers } = createMockBackend();
+          const session = new SessionManager(stubConfig(), client as any, stubPathMapper(), stubNotifier());
 
-            await session.launch();
-            // Fire a thread event to transition to Connected
-            const threadHandlers = eventHandlers.get('thread') ?? [];
-            const threadEvent = { seq: 0, type: 'event', event: 'thread', body: { reason: 'started', threadId: 1 } };
-            for (const h of threadHandlers) h(threadEvent as any);
-            expect(session.state).toBe(SessionState.Connected);
+          await session.launch();
+          // Fire a thread event to transition to Connected
+          const threadHandlers = eventHandlers.get('thread') ?? [];
+          const threadEvent = { seq: 0, type: 'event', event: 'thread', body: { reason: 'started', threadId: 1 } };
+          for (const h of threadHandlers) h(threadEvent as any);
+          expect(session.state).toBe(SessionState.Connected);
 
-            // The thread event fired with no wait in flight, so the first wait
-            // replays it from the buffer rather than blocking — that is the
-            // whole point of the buffer. Drain it before testing the timeout.
-            const replay = (await handleDebugWait(session, { timeout })).data as any;
-            expect(replay.reason).toBe('event');
-            expect(replay.event).toBe('thread');
-            expect(replay.replayed).toBe(true);
+          // The thread event fired with no wait in flight, so the first wait
+          // replays it from the buffer rather than blocking — that is the
+          // whole point of the buffer. Drain it before testing the timeout.
+          const replay = (await handleDebugWait(session, { timeout })).data as any;
+          expect(replay.reason).toBe('event');
+          expect(replay.event).toBe('thread');
+          expect(replay.replayed).toBe(true);
 
-            const waitPromise = handleDebugWait(session, { timeout });
-            vi.advanceTimersByTime(timeout + 1);
+          const waitPromise = handleDebugWait(session, { timeout });
+          vi.advanceTimersByTime(timeout + 1);
 
-            const result = await waitPromise;
-            expect(result.success).toBe(true);
+          const result = await waitPromise;
+          expect(result.success).toBe(true);
 
-            const data = result.data as any;
-            expect(data.reason).toBe('timeout');
-            expect(typeof data.guidance).toBe('string');
-            expect(data.guidance.length).toBeGreaterThan(0);
-          },
-        ),
+          const data = result.data as any;
+          expect(data.reason).toBe('timeout');
+          expect(typeof data.guidance).toBe('string');
+          expect(data.guidance.length).toBeGreaterThan(0);
+        }),
         { numRuns: 100 },
       );
     } finally {
@@ -746,7 +726,6 @@ describe('Property 8: Timeout guidance existence', () => {
     }
   }, 30000);
 });
-
 
 describe('Property 9: Event replay for events fired between tool calls', () => {
   /**
@@ -806,28 +785,24 @@ describe('Property 9: Event replay for events fired between tool calls', () => {
     vi.useFakeTimers();
     try {
       await fc.assert(
-        fc.asyncProperty(
-          fc.constantFrom(...WAIT_EVENTS),
-          fc.constantFrom(...WAIT_EVENTS),
-          async (first, second) => {
-            const { client, eventHandlers } = createMockBackend();
-            const session = new SessionManager(stubConfig(), client as any, stubPathMapper(), stubNotifier());
-            await session.launch();
+        fc.asyncProperty(fc.constantFrom(...WAIT_EVENTS), fc.constantFrom(...WAIT_EVENTS), async (first, second) => {
+          const { client, eventHandlers } = createMockBackend();
+          const session = new SessionManager(stubConfig(), client as any, stubPathMapper(), stubNotifier());
+          await session.launch();
 
-            fire(eventHandlers, first, 0);
-            fire(eventHandlers, second, 1);
+          fire(eventHandlers, first, 0);
+          fire(eventHandlers, second, 1);
 
-            const a = (await handleDebugWait(session, { timeout: 60_000 })).data as any;
-            expect(a.event).toBe(first);
-            expect(a.replayed).toBe(true);
-            expect(a.remainingBufferedEvents).toBe(1);
+          const a = (await handleDebugWait(session, { timeout: 60_000 })).data as any;
+          expect(a.event).toBe(first);
+          expect(a.replayed).toBe(true);
+          expect(a.remainingBufferedEvents).toBe(1);
 
-            const b = (await handleDebugWait(session, { timeout: 60_000 })).data as any;
-            expect(b.event).toBe(second);
-            expect(b.replayed).toBe(true);
-            expect(b.remainingBufferedEvents).toBe(0);
-          },
-        ),
+          const b = (await handleDebugWait(session, { timeout: 60_000 })).data as any;
+          expect(b.event).toBe(second);
+          expect(b.replayed).toBe(true);
+          expect(b.remainingBufferedEvents).toBe(0);
+        }),
         { numRuns: 50 },
       );
     } finally {
@@ -886,7 +861,9 @@ describe('Property 9: Event replay for events fired between tool calls', () => {
       await session.launch();
 
       const bpEvent = {
-        seq: 0, type: 'event', event: 'breakpoint',
+        seq: 0,
+        type: 'event',
+        event: 'breakpoint',
         body: { reason: 'changed', breakpoint: { id: 7, verified: true, line: 12 } },
       };
       for (const h of [...(eventHandlers.get('breakpoint') ?? [])]) h(bpEvent as any);
@@ -948,7 +925,12 @@ describe('Property 9: Event replay for events fired between tool calls', () => {
       expect((await waitOnce(session, 10)).replayed).toBe(true);
 
       const live = handleDebugWait(session, { timeout: 60_000 });
-      const continued = { seq: 1, type: 'event', event: 'continued', body: { threadId: 1, allThreadsContinued: false } };
+      const continued = {
+        seq: 1,
+        type: 'event',
+        event: 'continued',
+        body: { threadId: 1, allThreadsContinued: false },
+      };
       const exited = { seq: 2, type: 'event', event: 'thread', body: { reason: 'exited', threadId: 1 } };
       for (const h of [...(eventHandlers.get('continued') ?? [])]) h(continued as any);
       for (const h of [...(eventHandlers.get('thread') ?? [])]) h(exited as any);

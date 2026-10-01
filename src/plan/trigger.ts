@@ -57,10 +57,7 @@ export function startTrigger(trigger: ResolvedTrigger, ctx: TriggerContext): Tri
   }
 }
 
-function startCommand(
-  trigger: Extract<ResolvedTrigger, { kind: 'command' }>,
-  ctx: TriggerContext,
-): TriggerHandle {
+function startCommand(trigger: Extract<ResolvedTrigger, { kind: 'command' }>, ctx: TriggerContext): TriggerHandle {
   const now = ctx.now ?? Date.now;
   const t0 = now();
   const spawn = ctx.spawn ?? nodeSpawn;

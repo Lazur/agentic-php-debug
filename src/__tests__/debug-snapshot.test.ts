@@ -64,14 +64,14 @@ describe('debug_snapshot', () => {
   it('attaches to debug_wait and reports how the frame evolved after a step', async () => {
     const { session } = await pausedSession([
       stop(10, {
-        evaluate: { '$total': { result: '0', type: 'int' } },
+        evaluate: { $total: { result: '0', type: 'int' } },
         locals: [
           { name: '$i', value: '0', type: 'int' },
           { name: '$gone', value: 'true', type: 'bool' },
         ],
       }),
       stop(11, {
-        evaluate: { '$total': { result: '1.115', type: 'float' } },
+        evaluate: { $total: { result: '1.115', type: 'float' } },
         locals: [
           { name: '$i', value: '1', type: 'int' },
           { name: '$new', value: "'x'", type: 'string' },

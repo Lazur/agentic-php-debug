@@ -22,26 +22,20 @@ describe('Property 1: debugWaitSchema validates timeout inputs correctly', () =>
    */
   it('accepts any integer timeout value', () => {
     fc.assert(
-      fc.property(
-        fc.integer(),
-        (value) => {
-          const result = debugWaitSchema.safeParse({ timeout: value });
-          expect(result.success).toBe(true);
-        },
-      ),
+      fc.property(fc.integer(), (value) => {
+        const result = debugWaitSchema.safeParse({ timeout: value });
+        expect(result.success).toBe(true);
+      }),
       { numRuns: 100 },
     );
   });
 
   it('accepts omitted timeout (optional field)', () => {
     fc.assert(
-      fc.property(
-        fc.constant(undefined),
-        () => {
-          const result = debugWaitSchema.safeParse({});
-          expect(result.success).toBe(true);
-        },
-      ),
+      fc.property(fc.constant(undefined), () => {
+        const result = debugWaitSchema.safeParse({});
+        expect(result.success).toBe(true);
+      }),
       { numRuns: 1 },
     );
   });
@@ -93,16 +87,13 @@ describe('Property 2: debugEvaluateSchema context enum rejects invalid values', 
 
   it('accepts valid context enum values', () => {
     fc.assert(
-      fc.property(
-        fc.constantFrom(...VALID_CONTEXTS),
-        (context) => {
-          const result = debugEvaluateSchema.safeParse({
-            expression: 'test',
-            context,
-          });
-          expect(result.success).toBe(true);
-        },
-      ),
+      fc.property(fc.constantFrom(...VALID_CONTEXTS), (context) => {
+        const result = debugEvaluateSchema.safeParse({
+          expression: 'test',
+          context,
+        });
+        expect(result.success).toBe(true);
+      }),
       { numRuns: 100 },
     );
   });

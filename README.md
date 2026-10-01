@@ -1,8 +1,10 @@
-# ts-php-debug-mcp
+# Agentic debug
+
+[![CI](https://github.com/Lazur/agentic-php-debug/actions/workflows/ci.yml/badge.svg)](https://github.com/Lazur/agentic-php-debug/actions/workflows/ci.yml)
 
 MCP server for PHP/Xdebug debugging via the [vscode-php-debug](https://github.com/xdebug/vscode-php-debug) DAP adapter. Exposes debug tools over the Model Context Protocol so an AI agent can launch, step through, inspect, and control PHP debug sessions — interactively (ReAct mode), or by writing a plan that runs whole, reproducibly, with or without an agent (plan mode). See [Run modes](#run-modes).
 
-This package is also **the shared core**: the session state machine, the 21 tool handlers, path mapping and the breakpoint ledger live here and are reused by the [`vscode-agentic-debug`](../vscode-agentic-debug/) extension through the `DebugBackend` interface. See [DESIGN.md](./DESIGN.md) for the class diagrams.
+This package is also **the shared core**: the session state machine, the 21 tool handlers, path mapping and the breakpoint ledger live here and are reused by the [`vscode-agentic-debug`](../vscode-agentic-debug/) extension through the `DebugBackend` interface. See [DESIGN.md](./docs/DESIGN.md) for the class diagrams.
 
 ## Prerequisites
 
@@ -20,7 +22,7 @@ To upgrade: change the commit SHA of `php-debug` in `package.json`, `npm install
 ### Architecture
 
 ```
-MCP Client ──► ts-php-debug-mcp ──► node phpDebug.js (DAP) ──► Xdebug (PHP)
+MCP Client ──► agentic-php-debug ──► node phpDebug.js (DAP) ──► Xdebug (PHP)
 ```
 
 In the VS Code extension the same core runs with `VsCodeDebugBackend` in place of `DAPClient`, so
@@ -29,7 +31,7 @@ VS Code owns the adapter and the developer sees the native debug UI.
 ## Quick start
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Lazur/php-debug-mcp/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Lazur/agentic-php-debug/main/install.sh | bash
 ```
 
 This builds the server, registers it with Claude Code and Codex, and checks Xdebug. Docker
@@ -62,8 +64,8 @@ The server emits MCP log notifications (`notifications/message`) on two loggers:
 
 | Logger | Level | `data` |
 |---|---|---|
-| `ts-php-debug-mcp` | `info` | One line per state transition, e.g. `Session state: listening → connected`, `Session state: connected → paused` |
-| `ts-php-debug-mcp/debugEvent` | `warning` for `stopped`, `info` for the rest | A structured payload, e.g. `{ "event": "stopped", "reason": "breakpoint", "threadId": 1, "allThreadsStopped": false, "state": "paused" }` |
+| `agentic-php-debug` | `info` | One line per state transition, e.g. `Session state: listening → connected`, `Session state: connected → paused` |
+| `agentic-php-debug/debugEvent` | `warning` for `stopped`, `info` for the rest | A structured payload, e.g. `{ "event": "stopped", "reason": "breakpoint", "threadId": 1, "allThreadsStopped": false, "state": "paused" }` |
 
 Debug events are sent for `stopped`, `continued`, `thread` (started / exited), `terminated`, `exited`, `output` and `breakpoint` (resolution results). The server declares the `logging` capability, so clients can also filter by level with `logging/setLevel`.
 
@@ -153,7 +155,7 @@ directory). Before that, run `node dist/plan/cli.js` with the same arguments:
 
 ```bash
 cd /path/to/php-project
-node /path/to/ts-php-debug-mcp/dist/plan/cli.js run .claude/debug-plans/my.debugplan.json \
+node /path/to/agentic-php-debug/dist/plan/cli.js run .claude/debug-plans/my.debugplan.json \
   --config config.php.json --out /tmp/plan-run
 ```
 
@@ -171,7 +173,7 @@ server in a config file with the same shape as [`mcp.example.json`](mcp.example.
     "php-debug-plan": {
       "command": "node",
       "args": [
-        "/path/to/ts-php-debug-mcp/dist/index.js",
+        "/path/to/agentic-php-debug/dist/index.js",
         "--config", "/path/to/php-project/config.php.json",
         "--mode", "plan", "--allow-command-trigger",
         "--runs-dir", "/path/to/php-project/.php-debug-plan/runs"
@@ -222,7 +224,7 @@ every outcome and error code.
 Install it by copying or symlinking the directory into the project you debug:
 
 ```bash
-ln -s /absolute/path/to/ts-php-debug-mcp/skills/php-debug-modes \
+ln -s /absolute/path/to/agentic-php-debug/skills/php-debug-modes \
       your-php-project/.claude/skills/php-debug-modes
 ```
 
@@ -245,17 +247,17 @@ client's config and replace the absolute paths:
     "php-debug": {
       "command": "node",
       "args": [
-        "/absolute/path/to/ts-php-debug-mcp/dist/index.js",
+        "/absolute/path/to/agentic-php-debug/dist/index.js",
         "--config",
-        "/absolute/path/to/ts-php-debug-mcp/config.php.local.json"
+        "/absolute/path/to/agentic-php-debug/config.php.local.json"
       ]
     },
     "php-debug-plan": {
       "command": "node",
       "args": [
-        "/absolute/path/to/ts-php-debug-mcp/dist/index.js",
+        "/absolute/path/to/agentic-php-debug/dist/index.js",
         "--config",
-        "/absolute/path/to/ts-php-debug-mcp/config.php.local.json",
+        "/absolute/path/to/agentic-php-debug/config.php.local.json",
         "--mode",
         "plan",
         "--allow-command-trigger",
@@ -296,7 +298,7 @@ shape — `servers` instead of `mcpServers`, with an explicit type:
     "php-debug-plan": {
       "type": "stdio",
       "command": "node",
-      "args": ["/absolute/path/to/ts-php-debug-mcp/dist/index.js", "--config", "/absolute/path/to/config.php.local.json", "--mode", "plan", "--allow-command-trigger"]
+      "args": ["/absolute/path/to/agentic-php-debug/dist/index.js", "--config", "/absolute/path/to/config.php.local.json", "--mode", "plan", "--allow-command-trigger"]
     }
   }
 }
@@ -476,7 +478,7 @@ Minimal config for automated testing or CI pipelines.
 | `debug_plan_run` | Execute a plan deterministically and return a summary (plan mode) |
 | `debug_plan_report` | Read a finished run: one stop, one probe, a section, or the tool-call journal (plan mode) |
 
-`debug_wait` is framework-agnostic (`WaitSignal { aborted, onAbort }`, no `vscode` import), so each front end supplies its own cancellation adapter: an `AbortSignal` over MCP, a `CancellationToken` in the editor. See [`DESIGN.md` §5.4](./DESIGN.md) for the five resolution paths and the buffered-event replay.
+`debug_wait` is framework-agnostic (`WaitSignal { aborted, onAbort }`, no `vscode` import), so each front end supplies its own cancellation adapter: an `AbortSignal` over MCP, a `CancellationToken` in the editor. See [`DESIGN.md` §5.4](./docs/DESIGN.md) for the five resolution paths and the buffered-event replay.
 
 > `debug_status`'s `allowedToolsByState` also names `debug_breakpoints_get`, which is backed by the `BreakpointLedger` and therefore exists only in the extension. `handleDebugStatus` filters it out unless the caller passes `{ includeLedgerTools: true }`, so each surface is advertised only the tools it actually registered.
 
@@ -488,7 +490,12 @@ npm test                  # unit and property tests (vitest)
 npm run test:watch        # run tests in watch mode
 npm run test:e2e          # e2e/plans against real PHP + Xdebug, in-process and over MCP stdio
 npm run emit-plan-schema  # regenerate schemas/debug-plan.v1.schema.json after changing src/plan/schema.ts
+npm run lint              # ESLint (typescript-eslint); lint:fix applies the auto-fixes
+npm run format            # Prettier; format:check is what CI runs
+npm run typecheck         # tsc --noEmit
 ```
+
+[CI](.github/workflows/ci.yml) runs on every push to any branch and on pull requests: format, lint, typecheck, plan-schema drift and a runtime `npm audit`; build and unit tests on Node 20, 22 and 24; then the e2e plans against PHP 8.4 with Xdebug.
 
 `test:e2e` needs a build and either a host PHP with Xdebug or Docker: [e2e/php.sh](e2e/php.sh) falls back to `ddev/ddev-webserver:v1.25.4` (override with `E2E_PHP_IMAGE`) and maps the container's `/app` back to this package. Each plan must match its golden in `e2e/golden/` on both surfaces; re-record after an intended change with `UPDATE_GOLDEN=1 npm run test:e2e`. [e2e/smoke/drupal.debugplan.json](e2e/smoke/drupal.debugplan.json) is the plan form of `scripts/smoke-http.mjs`, for a ddev Drupal site (`SMOKE_ROOT`, `SMOKE_URL`).
 

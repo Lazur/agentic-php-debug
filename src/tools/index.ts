@@ -83,7 +83,10 @@ export function registerAllTools(
     baseDir: opts.plan?.baseDir ?? process.cwd(),
     allowCommandTrigger: opts.plan?.allowCommandTrigger ?? false,
   };
-  const defs = toolDefinitionsForMode(opts.mode ?? 'react', { isVsCodeBackendActive: opts.isVsCodeBackendActive, plan });
+  const defs = toolDefinitionsForMode(opts.mode ?? 'react', {
+    isVsCodeBackendActive: opts.isVsCodeBackendActive,
+    plan,
+  });
   const names = new Set(defs.map((d) => d.name));
 
   for (const def of defs) {
@@ -101,11 +104,13 @@ export function registerAllTools(
 
 /** Map the MCP SDK's per-request `extra` onto a ToolContext. */
 function contextFrom(extra: unknown): ToolContext {
-  const e = extra as {
-    signal?: AbortSignal;
-    _meta?: { progressToken?: string | number };
-    sendNotification?: (n: { method: string; params: Record<string, unknown> }) => Promise<void>;
-  } | undefined;
+  const e = extra as
+    | {
+        signal?: AbortSignal;
+        _meta?: { progressToken?: string | number };
+        sendNotification?: (n: { method: string; params: Record<string, unknown> }) => Promise<void>;
+      }
+    | undefined;
   const progressToken = e?._meta?.progressToken;
   let progress = 0;
   return {
@@ -116,7 +121,10 @@ function contextFrom(extra: unknown): ToolContext {
           reportProgress: (message: string) => {
             if (!e?.sendNotification) return;
             Promise.resolve(
-              e.sendNotification({ method: 'notifications/progress', params: { progressToken, progress: ++progress, message } }),
+              e.sendNotification({
+                method: 'notifications/progress',
+                params: { progressToken, progress: ++progress, message },
+              }),
             ).catch(() => {});
           },
         }

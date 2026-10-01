@@ -54,9 +54,7 @@ const mode = values.mode as ServerMode;
 const config = loadConfig(values.config);
 
 // --- Build path mappings from config ---
-const mappings: PathMapping[] = Object.entries(config.pathMappings).map(
-  ([remote, local]) => ({ remote, local }),
-);
+const mappings: PathMapping[] = Object.entries(config.pathMappings).map(([remote, local]) => ({ remote, local }));
 const pathMapper = new PathMapper(mappings);
 
 // One store for the process: run ids are unique, and in HTTP mode a run made in
@@ -75,10 +73,13 @@ const adapterVersion = readAdapterVersion();
 // --- Create core components (factory for per-session instances in HTTP mode) ---
 function createMcpStack() {
   const dapClient: DebugBackend = new DAPClient(config.adapterPath);
-  const mcpServer = new McpServer({
-    name: 'ts-php-debug-mcp',
-    version: '0.1.0',
-  }, MCP_SERVER_OPTIONS);
+  const mcpServer = new McpServer(
+    {
+      name: 'agentic-php-debug',
+      version: '0.1.0',
+    },
+    MCP_SERVER_OPTIONS,
+  );
   const notifier = new McpNotificationSender(mcpServer);
   const session = new SessionManager(config, dapClient, pathMapper, notifier);
   registerAllTools(mcpServer, session, {
@@ -124,15 +125,16 @@ async function shutdown(code: number): Promise<void> {
   const terminations = [...liveSessions].map((s) => s.terminate().catch(() => {}));
   // A wedged adapter must not hold shutdown open indefinitely; the 'exit'
   // handler below kills whatever is left.
-  await Promise.race([
-    Promise.all(terminations),
-    new Promise((resolve) => setTimeout(resolve, 3000).unref()),
-  ]);
+  await Promise.race([Promise.all(terminations), new Promise((resolve) => setTimeout(resolve, 3000).unref())]);
   process.exit(code);
 }
 
-process.on('SIGINT', () => { void shutdown(0); });
-process.on('SIGTERM', () => { void shutdown(0); });
+process.on('SIGINT', () => {
+  void shutdown(0);
+});
+process.on('SIGTERM', () => {
+  void shutdown(0);
+});
 
 // Last resort, synchronous: nothing async runs during 'exit'. After a clean
 // terminate() the adapter pid is already gone, so this only fires for the
@@ -141,7 +143,11 @@ process.on('exit', () => {
   for (const session of liveSessions) {
     const pid = session.status.adapterPid;
     if (pid === undefined) continue;
-    try { process.kill(pid); } catch { /* already gone */ }
+    try {
+      process.kill(pid);
+    } catch {
+      /* already gone */
+    }
   }
 });
 
@@ -160,7 +166,11 @@ async function startStdioTransport() {
   liveSessions.add(session);
 
   process.on('beforeExit', async () => {
-    try { await session.terminate(); } catch { /* already terminated */ }
+    try {
+      await session.terminate();
+    } catch {
+      /* already terminated */
+    }
     liveSessions.delete(session);
     await mcpServer.close();
   });
@@ -172,11 +182,14 @@ async function startStdioTransport() {
 // --- Streamable HTTP transport (multi-session) ---
 async function startHttpTransport() {
   // Map of session ID -> { transport, mcpServer, session }
-  const sessions = new Map<string, {
-    transport: StreamableHTTPServerTransport;
-    mcpServer: McpServer;
-    session: SessionManager;
-  }>();
+  const sessions = new Map<
+    string,
+    {
+      transport: StreamableHTTPServerTransport;
+      mcpServer: McpServer;
+      session: SessionManager;
+    }
+  >();
 
   /**
    * Parse JSON body from an IncomingMessage.
@@ -185,10 +198,15 @@ async function startHttpTransport() {
   function parseJsonBody(req: IncomingMessage): Promise<unknown> {
     return new Promise((resolve) => {
       let body = '';
-      req.on('data', (chunk: Buffer) => { body += chunk.toString(); });
+      req.on('data', (chunk: Buffer) => {
+        body += chunk.toString();
+      });
       req.on('end', () => {
-        try { resolve(JSON.parse(body)); }
-        catch { resolve(undefined); }
+        try {
+          resolve(JSON.parse(body));
+        } catch {
+          resolve(undefined);
+        }
       });
       req.on('error', () => resolve(undefined));
     });
@@ -222,7 +240,8 @@ async function startHttpTransport() {
         if (sid && sessions.has(sid)) {
           console.error(`[http] Session closed: ${sid}`);
           sessions.delete(sid);
-          session.terminate()
+          session
+            .terminate()
             .catch(() => {})
             .finally(() => liveSessions.delete(session));
         }
@@ -235,11 +254,13 @@ async function startHttpTransport() {
 
     // Invalid — no session and not an initialize request
     res.writeHead(400, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({
-      jsonrpc: '2.0',
-      error: { code: -32000, message: 'Bad Request: No valid session ID provided' },
-      id: null,
-    }));
+    res.end(
+      JSON.stringify({
+        jsonrpc: '2.0',
+        error: { code: -32000, message: 'Bad Request: No valid session ID provided' },
+        id: null,
+      }),
+    );
   }
 
   async function handleGet(req: IncomingMessage, res: ServerResponse) {
@@ -291,11 +312,13 @@ async function startHttpTransport() {
       console.error('[http] Error handling request:', err);
       if (!res.headersSent) {
         res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({
-          jsonrpc: '2.0',
-          error: { code: -32603, message: 'Internal server error' },
-          id: null,
-        }));
+        res.end(
+          JSON.stringify({
+            jsonrpc: '2.0',
+            error: { code: -32603, message: 'Internal server error' },
+            id: null,
+          }),
+        );
       }
     }
   });
@@ -304,8 +327,16 @@ async function startHttpTransport() {
   process.on('beforeExit', async () => {
     for (const [sid, entry] of sessions) {
       console.error(`[http] Cleaning up session ${sid}`);
-      try { await entry.session.terminate(); } catch { /* ignore */ }
-      try { await entry.transport.close(); } catch { /* ignore */ }
+      try {
+        await entry.session.terminate();
+      } catch {
+        /* ignore */
+      }
+      try {
+        await entry.transport.close();
+      } catch {
+        /* ignore */
+      }
     }
     sessions.clear();
   });

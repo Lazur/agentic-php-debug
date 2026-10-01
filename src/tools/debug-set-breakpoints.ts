@@ -4,6 +4,7 @@ import { SessionState } from '../session.js';
 import { describeBreakpoints, detectStateMismatch } from '../breakpoint-verification.js';
 import { successResult, ErrorCodes, type ToolResult } from './types.js';
 import { toolError } from './errors.js';
+import type { DebugProtocol } from '@vscode/debugprotocol';
 
 const breakpointSpecSchema = z.object({
   line: z.number().int().describe('Line number for the breakpoint'),
@@ -32,11 +33,7 @@ export async function handleDebugSetBreakpoints(
   args: z.infer<typeof debugSetBreakpointsSchema>,
 ): Promise<ToolResult> {
   try {
-    session.assertState(
-      SessionState.Listening,
-      SessionState.Connected,
-      SessionState.Paused,
-    );
+    session.assertState(SessionState.Listening, SessionState.Connected, SessionState.Paused);
 
     const remotePath = session.pathMapper.toRemote(args.path);
     const dapArgs = {
@@ -55,8 +52,11 @@ export async function handleDebugSetBreakpoints(
     // connection arrives — deferring until the 'thread' event races the
     // request, which usually finishes before the deferred send round-trips.
     const stateAtWrite = session.state;
-    const response = await session.dapClient.sendRequest('setBreakpoints', dapArgs);
-    const body = (response as any).body;
+    const response = await session.dapClient.sendRequest<DebugProtocol.SetBreakpointsResponse>(
+      'setBreakpoints',
+      dapArgs,
+    );
+    const body = response.body;
     const breakpoints = body?.breakpoints ?? [];
 
     const staged = stateAtWrite === SessionState.Connected;

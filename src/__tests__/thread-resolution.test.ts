@@ -10,16 +10,8 @@
  * **Validates: Requirements 4.4, 17.4**
  */
 import { describe, it, expect } from 'vitest';
-import {
-  createMockBackend,
-  launchAndConnect,
-  launchAndPause,
-} from './helpers/mock-backend.js';
-import {
-  ambiguousThreadNote,
-  resolveRunningThreadId,
-  resolveStoppedThreadId,
-} from '../tools/thread-resolution.js';
+import { createMockBackend, launchAndConnect, launchAndPause } from './helpers/mock-backend.js';
+import { ambiguousThreadNote, resolveRunningThreadId, resolveStoppedThreadId } from '../tools/thread-resolution.js';
 import { handleDebugContinue } from '../tools/debug-continue.js';
 import { handleDebugStackTrace } from '../tools/debug-stack-trace.js';
 import { handleDebugPause } from '../tools/debug-pause.js';

@@ -84,9 +84,7 @@ export class BreakpointLedger {
     for (const bp of breakpoints) {
       const fileEntries = this.entries.get(bp.file) ?? [];
       // Avoid duplicates at the same line from IDE source
-      const existing = fileEntries.findIndex(
-        (e) => e.line === bp.line && e.source === 'ide',
-      );
+      const existing = fileEntries.findIndex((e) => e.line === bp.line && e.source === 'ide');
       if (existing !== -1) {
         fileEntries[existing] = {
           file: bp.file,
@@ -118,9 +116,7 @@ export class BreakpointLedger {
   removeIdeBreakpoint(file: string, line: number): void {
     const fileEntries = this.entries.get(file);
     if (!fileEntries) return;
-    const idx = fileEntries.findIndex(
-      (e) => e.line === line && e.source === 'ide',
-    );
+    const idx = fileEntries.findIndex((e) => e.line === line && e.source === 'ide');
     if (idx !== -1) {
       fileEntries.splice(idx, 1);
       if (fileEntries.length === 0) {
@@ -250,9 +246,7 @@ export class BreakpointLedger {
 
       if (vsCodeSync) {
         // VS Code mode: use addBreakpoints/removeBreakpoints API
-        vsCodeSync.addBreakpoints(
-          merged.map((e) => ({ file: e.file, line: e.line, condition: e.condition })),
-        );
+        vsCodeSync.addBreakpoints(merged.map((e) => ({ file: e.file, line: e.line, condition: e.condition })));
       } else {
         // Standard DAP mode: send setBreakpoints request
         const remotePath = this.pathMapper.toRemote(file);

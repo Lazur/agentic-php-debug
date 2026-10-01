@@ -4,9 +4,14 @@ import { SessionState } from '../session.js';
 import { successResult, errorResult, ErrorCodes, type ToolResult } from './types.js';
 import { toolError } from './errors.js';
 import { resolveStoppedThreadId } from './thread-resolution.js';
+import type { DebugProtocol } from '@vscode/debugprotocol';
 
 export const debugExceptionInfoSchema = z.object({
-  threadId: z.number().int().optional().describe('Thread ID to get exception info for. Defaults to the currently stopped thread.'),
+  threadId: z
+    .number()
+    .int()
+    .optional()
+    .describe('Thread ID to get exception info for. Defaults to the currently stopped thread.'),
 });
 
 export type DebugExceptionInfoInput = z.infer<typeof debugExceptionInfoSchema>;
@@ -30,10 +35,10 @@ export async function handleDebugExceptionInfo(
       );
     }
 
-    const response = await session.dapClient.sendRequest('exceptionInfo', {
+    const response = await session.dapClient.sendRequest<DebugProtocol.ExceptionInfoResponse>('exceptionInfo', {
       threadId: resolved.threadId,
     });
-    const body = (response as any).body;
+    const body = response.body;
 
     return successResult({
       exceptionId: body?.exceptionId,

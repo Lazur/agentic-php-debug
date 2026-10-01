@@ -8,8 +8,9 @@ describe('toolError', () => {
   it('maps a SessionStateError to the caller-supplied state code', () => {
     const err = new SessionStateError([SessionState.Paused], SessionState.Listening);
     expect(toolError(err).error?.code).toBe(ErrorCodes.SESSION_NOT_PAUSED);
-    expect(toolError(err, { stateCode: ErrorCodes.SESSION_NOT_STARTED }).error?.code)
-      .toBe(ErrorCodes.SESSION_NOT_STARTED);
+    expect(toolError(err, { stateCode: ErrorCodes.SESSION_NOT_STARTED }).error?.code).toBe(
+      ErrorCodes.SESSION_NOT_STARTED,
+    );
   });
 
   it('preserves the exact assertState message text', () => {
@@ -74,13 +75,11 @@ describe('toolError', () => {
 
 describe('formatDapMessage', () => {
   it('substitutes {name} placeholders from variables', () => {
-    expect(formatDapMessage({ id: 1, format: 'no {thing} here', variables: { thing: 'frog' } }))
-      .toBe('no frog here');
+    expect(formatDapMessage({ id: 1, format: 'no {thing} here', variables: { thing: 'frog' } })).toBe('no frog here');
   });
 
   it('leaves unknown placeholders untouched rather than printing undefined', () => {
-    expect(formatDapMessage({ id: 1, format: 'a {missing} b', variables: {} }))
-      .toBe('a {missing} b');
+    expect(formatDapMessage({ id: 1, format: 'a {missing} b', variables: {} })).toBe('a {missing} b');
   });
 
   it('handles a format with no variables at all', () => {

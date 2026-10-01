@@ -29,10 +29,10 @@ export class StaleReferenceError extends Error {
   ) {
     super(
       `${kind} ${reference} was issued during suspension ${issuedInSuspension}; ` +
-      `the session is now in suspension ${currentSuspension}. Object references do not ` +
-      'survive a resume, and this adapter does not invalidate them, so reusing this id ' +
-      'would return values from a different frame rather than an error. ' +
-      'Call debug_stack_trace, then debug_scopes, for fresh references.',
+        `the session is now in suspension ${currentSuspension}. Object references do not ` +
+        'survive a resume, and this adapter does not invalidate them, so reusing this id ' +
+        'would return values from a different frame rather than an error. ' +
+        'Call debug_stack_trace, then debug_scopes, for fresh references.',
     );
     this.kind = kind;
     this.reference = reference;
@@ -76,9 +76,9 @@ export function toolError(err: unknown, opts: ToolErrorOptions = {}): ToolResult
   if (err instanceof DAPTimeoutError) {
     return errorResult(
       `${err.message}. The request was abandoned but the target may still be executing it, ` +
-      'so the session state may be stale. Call debug_status to check the session survived. ' +
-      'If the target itself is slow, retry with a larger timeout; if this timeout is already ' +
-      'above your PHP-FPM read timeout, the request was likely killed underneath the debugger.',
+        'so the session state may be stale. Call debug_status to check the session survived. ' +
+        'If the target itself is slow, retry with a larger timeout; if this timeout is already ' +
+        'above your PHP-FPM read timeout, the request was likely killed underneath the debugger.',
       ErrorCodes.DAP_TIMEOUT,
       { command: err.command },
     );

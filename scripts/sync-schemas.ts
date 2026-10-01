@@ -17,11 +17,7 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as allSchemas from '../src/tools/schemas.js';
 import * as allDescriptions from '../src/tools/descriptions.js';
-import {
-  collectSchemaEntries,
-  generateInputSchema,
-  toolNameToDescriptionExport,
-} from './tool-map.js';
+import { collectSchemaEntries, generateInputSchema, toolNameToDescriptionExport } from './tool-map.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -62,6 +58,4 @@ for (const [toolName, descExport] of Object.entries(toolNameToDescriptionExport)
 }
 
 writeFileSync(extensionPkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf-8');
-console.log(
-  `\nSynced ${schemasWritten} schemas and ${descriptionsWritten} descriptions into ${extensionPkgPath}`,
-);
+console.log(`\nSynced ${schemasWritten} schemas and ${descriptionsWritten} descriptions into ${extensionPkgPath}`);

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { SessionManager } from '../session.js';
+import type { SessionManager, SessionStatus } from '../session.js';
 import { SessionState } from '../session.js';
 import type { EventHandler } from '../debug-backend.js';
 import { successResult, type ToolResult } from './types.js';
@@ -37,7 +37,7 @@ export interface WaitResult {
   reason: 'event' | 'already_paused' | 'timeout' | 'cancelled';
   event: string | null;
   body: Record<string, unknown> | null;
-  status: import('../session.js').SessionStatus;
+  status: SessionStatus;
   /** True when the event fired before this call and was replayed from the buffer. */
   replayed?: boolean;
   /** How many further buffered events remain; each takes one more debug_wait. */
@@ -130,9 +130,10 @@ async function waitForDebugEvent(
       status,
       replayed: true,
       remainingBufferedEvents: status.pendingEventCount,
-      nextAction: status.pendingEventCount > 0
-        ? 'Call debug_wait again to drain the remaining buffered events.'
-        : 'Call debug_stack_trace to inspect where execution stopped.',
+      nextAction:
+        status.pendingEventCount > 0
+          ? 'Call debug_wait again to drain the remaining buffered events.'
+          : 'Call debug_stack_trace to inspect where execution stopped.',
     });
   }
 
@@ -153,6 +154,8 @@ async function waitForDebugEvent(
   return new Promise<ToolResult>((resolve) => {
     let settled = false;
     const handlers: Array<{ eventName: string; handler: EventHandler }> = [];
+    // let, not const: an event can fire and call cleanup() before the timer is armed below.
+    // eslint-disable-next-line prefer-const
     let timer: ReturnType<typeof setTimeout>;
 
     const cleanup = () => {
@@ -173,13 +176,15 @@ async function waitForDebugEvent(
         // The session buffered this event too; this result reports it, so the
         // next debug_wait must not replay it.
         session.consumePendingEvent(event);
-        resolve(successResult({
-          reason: 'event',
-          event: eventName,
-          body: (event.body as Record<string, unknown>) ?? {},
-          status: session.status,
-          nextAction: 'Call debug_stack_trace to inspect where execution stopped.',
-        }));
+        resolve(
+          successResult({
+            reason: 'event',
+            event: eventName,
+            body: (event.body as Record<string, unknown>) ?? {},
+            status: session.status,
+            nextAction: 'Call debug_stack_trace to inspect where execution stopped.',
+          }),
+        );
       };
       backend.onEvent(eventName, handler);
       handlers.push({ eventName, handler });
@@ -188,26 +193,30 @@ async function waitForDebugEvent(
     // Timeout
     timer = setTimeout(() => {
       cleanup();
-      resolve(successResult({
-        reason: 'timeout',
-        event: null,
-        body: null,
-        status: session.status,
-        nextAction: 'Retry debug_wait or call debug_status to check session state.',
-        guidance: timeoutGuidance[session.state] ?? 'Check session state with debug_status.',
-      }));
+      resolve(
+        successResult({
+          reason: 'timeout',
+          event: null,
+          body: null,
+          status: session.status,
+          nextAction: 'Retry debug_wait or call debug_status to check session state.',
+          guidance: timeoutGuidance[session.state] ?? 'Check session state with debug_status.',
+        }),
+      );
     }, timeout);
 
     // Cancellation
     signal?.onAbort(() => {
       cleanup();
-      resolve(successResult({
-        reason: 'cancelled',
-        event: null,
-        body: null,
-        status: session.status,
-        nextAction: 'Call debug_status to check session state.',
-      }));
+      resolve(
+        successResult({
+          reason: 'cancelled',
+          event: null,
+          body: null,
+          status: session.status,
+          nextAction: 'Call debug_status to check session state.',
+        }),
+      );
     });
   });
 }

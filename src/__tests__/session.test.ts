@@ -48,14 +48,28 @@ function createMockDAPClient() {
       eventHandlers.set(name, list);
     },
     onAnyEvent() {},
-    async initialize() { return {} as any; },
-    async launch() { return {} as any; },
-    async configurationDone() { return {} as any; },
-    async sendRequest() { return {} as any; },
+    async initialize() {
+      return {} as any;
+    },
+    async launch() {
+      return {} as any;
+    },
+    async configurationDone() {
+      return {} as any;
+    },
+    async sendRequest() {
+      return {} as any;
+    },
     async disconnect() {},
-    waitForEvent(_name: string) { return Promise.resolve({} as DebugProtocol.Event); },
-    isAlive() { return true; },
-    getStatus() { return { alive: true, pid: 1234 }; },
+    waitForEvent(_name: string) {
+      return Promise.resolve({} as DebugProtocol.Event);
+    },
+    isAlive() {
+      return true;
+    },
+    getStatus() {
+      return { alive: true, pid: 1234 };
+    },
   } as unknown as DAPClient;
 
   /** Fire a DAP event to all registered handlers for that event name. */
@@ -72,7 +86,6 @@ function createMockDAPClient() {
 
   return { client, fireEvent };
 }
-
 
 // --- State machine definitions ---
 
@@ -158,10 +171,10 @@ const DAP_EVENTS: DAPEventSpec[] = [
  * Arbitrary: generates a random sequence of DAP event names (from the
  * events that the session manager handles).
  */
-const dapEventSequenceArb = fc.array(
-  fc.constantFrom(...DAP_EVENTS.map((e) => e.name)),
-  { minLength: 1, maxLength: 30 },
-);
+const dapEventSequenceArb = fc.array(fc.constantFrom(...DAP_EVENTS.map((e) => e.name)), {
+  minLength: 1,
+  maxLength: 30,
+});
 
 // --- Property 7: Session state machine validity ---
 
@@ -179,12 +192,7 @@ describe('Property 7: Session state machine validity', () => {
     await fc.assert(
       fc.asyncProperty(dapEventSequenceArb, async (eventNames) => {
         const { client, fireEvent } = createMockDAPClient();
-        const session = new SessionManager(
-          stubConfig(),
-          client,
-          stubPathMapper(),
-          stubNotifier(),
-        );
+        const session = new SessionManager(stubConfig(), client, stubPathMapper(), stubNotifier());
 
         // Launch to get into Listening state (registers event handlers)
         await session.launch();
@@ -214,7 +222,6 @@ describe('Property 7: Session state machine validity', () => {
     );
   });
 });
-
 
 // --- Property 8: Session state guards ---
 
@@ -260,12 +267,7 @@ describe('Property 8: Session state guards', () => {
     await fc.assert(
       fc.asyncProperty(stateGuardArb, async ([allowedStates, actualState]) => {
         const { client, fireEvent } = createMockDAPClient();
-        const session = new SessionManager(
-          stubConfig(),
-          client,
-          stubPathMapper(),
-          stubNotifier(),
-        );
+        const session = new SessionManager(stubConfig(), client, stubPathMapper(), stubNotifier());
 
         // Drive the session to the desired actualState
         await driveToState(session, actualState, fireEvent);
@@ -283,21 +285,13 @@ describe('Property 8: Session state guards', () => {
 
   it('assertState does NOT throw when state is in the allowed set', async () => {
     const stateGuardPassArb = fc
-      .tuple(
-        fc.subarray(allStates, { minLength: 1, maxLength: allStates.length }),
-        fc.constantFrom(...reachableStates),
-      )
+      .tuple(fc.subarray(allStates, { minLength: 1, maxLength: allStates.length }), fc.constantFrom(...reachableStates))
       .filter(([allowed, actual]) => allowed.includes(actual));
 
     await fc.assert(
       fc.asyncProperty(stateGuardPassArb, async ([allowedStates, actualState]) => {
         const { client, fireEvent } = createMockDAPClient();
-        const session = new SessionManager(
-          stubConfig(),
-          client,
-          stubPathMapper(),
-          stubNotifier(),
-        );
+        const session = new SessionManager(stubConfig(), client, stubPathMapper(), stubNotifier());
 
         await driveToState(session, actualState, fireEvent);
         expect(session.state).toBe(actualState);
@@ -339,7 +333,6 @@ async function driveToState(
   fireEvent('terminated', {});
   if (target === SessionState.Terminated) return;
 }
-
 
 // --- Property 17: Debug status accuracy ---
 
@@ -389,13 +382,25 @@ describe('Property 17: Debug status accuracy', () => {
             eventHandlers.set(name, list);
           },
           onAnyEvent() {},
-          async initialize() { return {} as any; },
-          async launch() { return {} as any; },
-          async configurationDone() { return {} as any; },
-          async sendRequest() { return {} as any; },
+          async initialize() {
+            return {} as any;
+          },
+          async launch() {
+            return {} as any;
+          },
+          async configurationDone() {
+            return {} as any;
+          },
+          async sendRequest() {
+            return {} as any;
+          },
           async disconnect() {},
-          waitForEvent() { return Promise.resolve({} as DebugProtocol.Event); },
-          isAlive() { return adapterAlive; },
+          waitForEvent() {
+            return Promise.resolve({} as DebugProtocol.Event);
+          },
+          isAlive() {
+            return adapterAlive;
+          },
           getStatus() {
             return {
               alive: adapterAlive,
@@ -411,12 +416,7 @@ describe('Property 17: Debug status accuracy', () => {
           for (const h of handlers) h(event);
         }
 
-        const session = new SessionManager(
-          stubConfig(),
-          client,
-          stubPathMapper(),
-          stubNotifier(),
-        );
+        const session = new SessionManager(stubConfig(), client, stubPathMapper(), stubNotifier());
 
         // Drive to target state
         await driveToState(session, targetState, fireEvent);

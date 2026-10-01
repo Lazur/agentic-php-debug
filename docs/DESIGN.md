@@ -1,4 +1,4 @@
-# ts-php-debug-mcp — Software Design Document
+# agentic-php-debug — Software Design Document
 
 > **Audience.** Someone who has never opened this repository and needs to understand *what the
 > objects are, who owns whom, and what happens on the wire* before touching code.
@@ -9,7 +9,7 @@
 
 ## 1. What this system is
 
-`ts-php-debug-mcp` lets an **AI agent drive a real PHP debugger**. It is a protocol translator
+`agentic-php-debug` lets an **AI agent drive a real PHP debugger**. It is a protocol translator
 sitting between two worlds:
 
 | Side | Protocol | Who talks it |
@@ -30,7 +30,7 @@ flowchart TB
     copilot["Copilot agent mode<br/>(in-editor)"]
 
     subgraph sys["This system"]
-        mcp["ts-php-debug-mcp<br/>MCP server process"]
+        mcp["agentic-php-debug<br/>MCP server process"]
         ext["vscode-agentic-debug<br/>VS Code extension"]
     end
 
@@ -57,7 +57,7 @@ listens. That inversion is the single most common source of confusion when confi
 
 ```mermaid
 flowchart TB
-    subgraph core["📦 ts-php-debug-mcp — the shared core"]
+    subgraph core["📦 agentic-php-debug — the shared core"]
         direction TB
         entry["index.ts<br/><i>CLI · transport · wiring</i>"]
         runtime["session · debug-backend · dap-client<br/>dap-framing · path-mapper<br/>breakpoint-ledger · notifications · config"]
@@ -94,12 +94,12 @@ flowchart TB
 
 **How to read it.** Arrows are *build- and run-time dependencies*. The core knows nothing about the
 extensions — dependency flows one way only. The extensions consume the core through an explicit
-`exports` map in `package.json` (`ts-php-debug-mcp/session.js`, `ts-php-debug-mcp/tools/debug-variables.js`, …),
+`exports` map in `package.json` (`agentic-php-debug/session.js`, `agentic-php-debug/tools/debug-variables.js`, …),
 which means **the core must be built (`npm run build`) before either extension compiles.**
 
 | Package | Role | Status |
 |---|---|---|
-| `ts-php-debug-mcp` | Session state machine, DAP client, tool handlers, MCP server | **Active — the core** |
+| `agentic-php-debug` | Session state machine, DAP client, tool handlers, MCP server | **Active — the core** |
 | `vscode-agentic-debug` | VS Code ≥1.95 extension; 18 Language Model Tools for Copilot agent mode | **Active — current front-end** |
 | `vscode-debug-bridge` | First attempt: MCP server hosted *inside* VS Code | Superseded; kept for its breakpoint-sync and hypothesis-confirmation ideas |
 | `vscode-php-debug` | Vendored upstream DAP adapter, used as `out/phpDebug.js` | Vendored dependency, not modified |
@@ -1659,7 +1659,7 @@ side is Linux-in-Docker or a remote host.
 
 `McpNotificationSender` adapts `SessionManager`'s three notification calls onto the MCP SDK:
 `server.notification()` for progress, `sendLoggingMessage()` for logs and debug events. Debug events
-use the logger name `ts-php-debug-mcp/debugEvent` so clients can filter them out of ordinary logs;
+use the logger name `agentic-php-debug/debugEvent` so clients can filter them out of ordinary logs;
 `stopped` is emitted at `warning` level, everything else at `info`.
 
 ### 6.7 `breakpoint-ledger.ts`

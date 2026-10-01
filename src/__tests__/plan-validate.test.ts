@@ -53,7 +53,9 @@ describe('validatePlan', () => {
 
   it('hashes independently of key order', () => {
     const a = DebugPlanSchema.parse(plan());
-    const b = DebugPlanSchema.parse(JSON.parse(JSON.stringify({ probes: a.probes, trigger: a.trigger, name: a.name, version: 1 })));
+    const b = DebugPlanSchema.parse(
+      JSON.parse(JSON.stringify({ probes: a.probes, trigger: a.trigger, name: a.name, version: 1 })),
+    );
     expect(hashPlan(a)).toBe(hashPlan(b));
   });
 
@@ -103,14 +105,21 @@ describe('validatePlan', () => {
 
   it('requires something to stop on', () => {
     const r = validatePlan(plan({ probes: [] }), { baseDir: workspace() });
-    expect(messages(r.errors)).toContain('probes: The plan has nothing to stop on: add probes, functions or exceptions.');
+    expect(messages(r.errors)).toContain(
+      'probes: The plan has nothing to stop on: add probes, functions or exceptions.',
+    );
   });
 
   it('warns about lines that verify but never hit, mutating captures, and untested hypotheses', () => {
     const r = validatePlan(
       plan({
         probes: [
-          { id: 'brace', file: 'cart.php', line: 4, capture: { evaluate: ['$sum = 0', '$sum == 0', "strpos($s, '=')"] } },
+          {
+            id: 'brace',
+            file: 'cart.php',
+            line: 4,
+            capture: { evaluate: ['$sum = 0', '$sum == 0', "strpos($s, '=')"] },
+          },
           { id: 'comment', file: 'cart.php', line: 2 },
         ],
         hypotheses: [{ id: 'H1', basis: 'b', claim: 'c' }],
@@ -146,16 +155,24 @@ describe('validatePlan', () => {
       }),
       { baseDir: workspace() },
     );
-    expect(messages(r.errors)).toContain('expect[0].hit: Hit 3 is never captured: probe "sum" captures at most 2 hits.');
+    expect(messages(r.errors)).toContain(
+      'expect[0].hit: Hit 3 is never captured: probe "sum" captures at most 2 hits.',
+    );
   });
 
   it('interpolates ${env:…} and ${root}, and reports unset variables', () => {
     const dir = workspace();
     const ok = validatePlan(
-      plan({ trigger: { kind: 'http', url: '${env:APP_URL}/cart?root=${root}', headers: { 'X-Token': '${env:TOKEN}' } } }),
+      plan({
+        trigger: { kind: 'http', url: '${env:APP_URL}/cart?root=${root}', headers: { 'X-Token': '${env:TOKEN}' } },
+      }),
       { baseDir: dir, env: { APP_URL: 'http://localhost:8080', TOKEN: 't' } },
     );
-    expect(ok.plan!.trigger).toMatchObject({ kind: 'http', url: `http://localhost:8080/cart?root=${dir}`, headers: { 'X-Token': 't' } });
+    expect(ok.plan!.trigger).toMatchObject({
+      kind: 'http',
+      url: `http://localhost:8080/cart?root=${dir}`,
+      headers: { 'X-Token': 't' },
+    });
 
     const missing = validatePlan(plan({ trigger: { kind: 'http', url: '${env:NOPE}/x' } }), { baseDir: dir, env: {} });
     expect(messages(missing.errors)).toContain('trigger.url: Environment variable "NOPE" is not set');
@@ -166,7 +183,10 @@ describe('validatePlan', () => {
     const gated = validatePlan(plan(), { baseDir: dir, allowCommandTrigger: false, surface: 'mcp' });
     expect(gated.errors[0].message).toContain('--allow-command-trigger');
 
-    const mcp = validatePlan(plan({ session: { pathMappings: { '/var/www': '.' } } }), { baseDir: dir, surface: 'mcp' });
+    const mcp = validatePlan(plan({ session: { pathMappings: { '/var/www': '.' } } }), {
+      baseDir: dir,
+      surface: 'mcp',
+    });
     expect(mcp.ok).toBe(true);
     expect(messages(mcp.warnings).join('\n')).toContain('session.pathMappings: Ignored by a running MCP server');
   });
@@ -175,7 +195,15 @@ describe('validatePlan', () => {
     const dir = workspace();
     const r = validatePlan(plan({ functions: [{ id: 'f', name: 'total' }] }), {
       baseDir: dir,
-      availableTools: new Set(['debug_status', 'debug_launch', 'debug_wait', 'debug_stack_trace', 'debug_continue', 'debug_terminate', 'debug_set_breakpoints']),
+      availableTools: new Set([
+        'debug_status',
+        'debug_launch',
+        'debug_wait',
+        'debug_stack_trace',
+        'debug_continue',
+        'debug_terminate',
+        'debug_set_breakpoints',
+      ]),
     });
     expect(r.ok).toBe(false);
     expect(r.errors[0].message).toContain('debug_set_function_breakpoints');
@@ -256,7 +284,17 @@ describe('plan JSON Schema', () => {
   it('is generated from the Zod schema and names every top-level field', () => {
     const schema = planJsonSchema() as { properties?: Record<string, unknown>; required?: string[] };
     expect(Object.keys(schema.properties ?? {})).toEqual(
-      expect.arrayContaining(['version', 'name', 'trigger', 'probes', 'exceptions', 'functions', 'limits', 'expect', 'hypotheses']),
+      expect.arrayContaining([
+        'version',
+        'name',
+        'trigger',
+        'probes',
+        'exceptions',
+        'functions',
+        'limits',
+        'expect',
+        'hypotheses',
+      ]),
     );
     expect(schema.required).toEqual(expect.arrayContaining(['version', 'name', 'trigger']));
   });

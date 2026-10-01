@@ -82,9 +82,14 @@ function createMockAdapter() {
           // Send response, then emit initialized event
           stdout.write(frameMessage(response));
           setTimeout(() => {
-            stdout.write(frameMessage({
-              seq: 0, type: 'event', event: 'initialized', body: {},
-            }));
+            stdout.write(
+              frameMessage({
+                seq: 0,
+                type: 'event',
+                event: 'initialized',
+                body: {},
+              }),
+            );
           }, 5);
           continue; // skip the default write below
         case 'setBreakpoints':
@@ -156,9 +161,14 @@ function createMockAdapter() {
 
   /** Emit a DAP event from the adapter to the client. */
   function emitEvent(eventName: string, body: Record<string, unknown>) {
-    stdout.write(frameMessage({
-      seq: 0, type: 'event', event: eventName, body,
-    }));
+    stdout.write(
+      frameMessage({
+        seq: 0,
+        type: 'event',
+        event: eventName,
+        body,
+      }),
+    );
   }
 
   return { process, capturedRequests, emitEvent };
@@ -205,26 +215,26 @@ describe('Integration test with mock adapter (Task 16.1)', () => {
     const spawner: ProcessSpawner = { spawn: () => mockProc };
 
     const config = createTestConfig();
-    const pathMapper = new PathMapper([
-      { local: '/home/user/project', remote: '/var/www/html' },
-    ]);
+    const pathMapper = new PathMapper([{ local: '/home/user/project', remote: '/var/www/html' }]);
     const dapClient = new DAPClient(config.adapterPath, spawner);
-    const { notifier, progressCalls, logCalls, debugEventCalls } = createCapturingNotifier();
+    const { notifier, progressCalls, debugEventCalls } = createCapturingNotifier();
     const session = new SessionManager(config, dapClient, pathMapper, notifier);
 
     // --- 1. Launch ---
-    const launchResult = await handleDebugLaunch(session, {}, 'test-progress-token', { isPortBound: async () => false });
+    const launchResult = await handleDebugLaunch(session, {}, 'test-progress-token', {
+      isPortBound: async () => false,
+    });
     expect(launchResult.success).toBe(true);
     expect(session.state).toBe(SessionState.Listening);
 
     // Verify progress notifications were sent during launch (Req 14.6)
     expect(progressCalls.length).toBeGreaterThanOrEqual(3);
-    expect(progressCalls.every(p => p.token === 'test-progress-token')).toBe(true);
-    expect(progressCalls.some(p => p.message?.includes('Initializing'))).toBe(true);
-    expect(progressCalls.some(p => p.message?.includes('Listening'))).toBe(true);
+    expect(progressCalls.every((p) => p.token === 'test-progress-token')).toBe(true);
+    expect(progressCalls.some((p) => p.message?.includes('Initializing'))).toBe(true);
+    expect(progressCalls.some((p) => p.message?.includes('Listening'))).toBe(true);
 
     // Verify DAP init sequence was sent
-    const commands = capturedRequests.map(r => r.command);
+    const commands = capturedRequests.map((r) => r.command);
     expect(commands).toContain('initialize');
     expect(commands).toContain('launch');
     expect(commands).toContain('configurationDone');
@@ -238,16 +248,16 @@ describe('Integration test with mock adapter (Task 16.1)', () => {
     // Breakpoints go to the adapter right away, even while listening — they
     // must be registered before Xdebug connects.
     expect((bpResult.data as any).queued).toBe(false);
-    expect(capturedRequests.map(r => r.command)).toContain('setBreakpoints');
+    expect(capturedRequests.map((r) => r.command)).toContain('setBreakpoints');
 
     // --- 3. Simulate Xdebug connection (thread event) ---
     emitEvent('thread', { threadId: 1, reason: 'started' });
     // Allow event to propagate
-    await new Promise(r => setTimeout(r, 20));
+    await new Promise((r) => setTimeout(r, 20));
     expect(session.state).toBe(SessionState.Connected);
 
     // Verify debug event notification for Xdebug connection
-    expect(debugEventCalls.some(e => e.event === 'thread' && e.details.reason === 'started')).toBe(true);
+    expect(debugEventCalls.some((e) => e.event === 'thread' && e.details.reason === 'started')).toBe(true);
 
     // --- 4. Simulate stopped event (breakpoint hit) ---
     emitEvent('stopped', {
@@ -256,11 +266,11 @@ describe('Integration test with mock adapter (Task 16.1)', () => {
       allThreadsStopped: true,
       description: 'Breakpoint hit',
     });
-    await new Promise(r => setTimeout(r, 20));
+    await new Promise((r) => setTimeout(r, 20));
     expect(session.state).toBe(SessionState.Paused);
 
     // Verify debug event notification for stopped event (Req 14.6)
-    expect(debugEventCalls.some(e => e.event === 'stopped' && e.details.reason === 'breakpoint')).toBe(true);
+    expect(debugEventCalls.some((e) => e.event === 'stopped' && e.details.reason === 'breakpoint')).toBe(true);
 
     // --- 5. Stack trace (with path mapping) ---
     const stackResult = await handleDebugStackTrace(session, { threadId: 1 });

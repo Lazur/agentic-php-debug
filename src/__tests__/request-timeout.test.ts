@@ -23,8 +23,14 @@ function stubNotifier(): NotificationSender {
 }
 function stubConfig(): Config {
   return {
-    adapterPath: '/fake/adapter.js', port: 9003, hostname: '127.0.0.1', stopOnEntry: false,
-    pathMappings: {}, runtimeExecutable: 'php', maxConnections: 0, log: false,
+    adapterPath: '/fake/adapter.js',
+    port: 9003,
+    hostname: '127.0.0.1',
+    stopOnEntry: false,
+    pathMappings: {},
+    runtimeExecutable: 'php',
+    maxConnections: 0,
+    log: false,
   } as Config;
 }
 function stubPathMapper(): PathMapper {
@@ -47,21 +53,35 @@ function createSilentProcess() {
     try {
       const msg = JSON.parse(body);
       if (msg.command === 'initialize') {
-        stdout.write(frameMessage({
-          seq: 1, type: 'response', request_seq: msg.seq, command: 'initialize', success: true, body: {},
-        } as DebugProtocol.Response));
+        stdout.write(
+          frameMessage({
+            seq: 1,
+            type: 'response',
+            request_seq: msg.seq,
+            command: 'initialize',
+            success: true,
+            body: {},
+          } as DebugProtocol.Response),
+        );
       }
-    } catch { /* partial frame */ }
+    } catch {
+      /* partial frame */
+    }
   });
 
   const proc = Object.assign(emitter, {
-    stdin, stdout, stderr: new PassThrough(), pid: 4321,
+    stdin,
+    stdout,
+    stderr: new PassThrough(),
+    pid: 4321,
     kill: () => true,
   }) as unknown as ChildProcessLike;
   return { proc, stdout };
 }
 
-afterEach(() => { vi.useRealTimers(); });
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe('DAPTimeoutError', () => {
   it('is thrown instead of a generic Error, carrying command and duration', async () => {
@@ -98,7 +118,8 @@ describe('DAPTimeoutError', () => {
     await assertion;
 
     expect(session.status.lastRequestTimeout).toMatchObject({
-      command: 'evaluate', timeoutMs: 1000,
+      command: 'evaluate',
+      timeoutMs: 1000,
     });
 
     const guidance = (handleDebugStatus(session).data as any).guidance;
@@ -110,7 +131,9 @@ describe('DAPTimeoutError', () => {
 describe('handleDebugEvaluate timeout reporting', () => {
   it('reports DAP_TIMEOUT, not DAP_ERROR, and says how to tell the causes apart', async () => {
     const client = {
-      onEvent: vi.fn(), offEvent: vi.fn(), onAnyEvent: vi.fn(),
+      onEvent: vi.fn(),
+      offEvent: vi.fn(),
+      onAnyEvent: vi.fn(),
       initialize: vi.fn().mockResolvedValue({}),
       launch: vi.fn().mockResolvedValue({}),
       configurationDone: vi.fn().mockResolvedValue({}),
@@ -120,7 +143,8 @@ describe('handleDebugEvaluate timeout reporting', () => {
       isAlive: () => true,
       getStatus: () => ({ alive: true, pid: 1 }),
       getSeq: () => 1,
-      onTrace: null, onStderr: null,
+      onTrace: null,
+      onStderr: null,
     };
     const session = new SessionManager(stubConfig(), client as any, stubPathMapper(), stubNotifier());
     await session.launch();
@@ -145,7 +169,9 @@ describe('handleDebugEvaluate timeout reporting', () => {
   it('passes an explicit timeout through to the adapter', async () => {
     const sendRequest = vi.fn().mockResolvedValue({ body: { result: '1', type: 'int' } });
     const client = {
-      onEvent: vi.fn(), offEvent: vi.fn(), onAnyEvent: vi.fn(),
+      onEvent: vi.fn(),
+      offEvent: vi.fn(),
+      onAnyEvent: vi.fn(),
       initialize: vi.fn().mockResolvedValue({}),
       launch: vi.fn().mockResolvedValue({}),
       configurationDone: vi.fn().mockResolvedValue({}),
@@ -155,7 +181,8 @@ describe('handleDebugEvaluate timeout reporting', () => {
       isAlive: () => true,
       getStatus: () => ({ alive: true, pid: 1 }),
       getSeq: () => 1,
-      onTrace: null, onStderr: null,
+      onTrace: null,
+      onStderr: null,
     };
     const session = new SessionManager(stubConfig(), client as any, stubPathMapper(), stubNotifier());
     await session.launch();

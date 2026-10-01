@@ -17,22 +17,18 @@ import type { SessionManager } from '../session.js';
 
 const arbPathSegment = fc.stringMatching(/^[a-z0-9_-]{1,10}$/);
 
-const arbDirPath = fc
-  .array(arbPathSegment, { minLength: 1, maxLength: 4 })
-  .map((segments) => '/' + segments.join('/'));
+const arbDirPath = fc.array(arbPathSegment, { minLength: 1, maxLength: 4 }).map((segments) => '/' + segments.join('/'));
 
 const arbPathMapping: fc.Arbitrary<PathMapping> = fc
   .tuple(arbDirPath, arbDirPath)
   .filter(([a, b]) => a !== b)
   .map(([local, remote]) => ({ local, remote }));
 
-const arbMappings = fc
-  .array(arbPathMapping, { minLength: 1, maxLength: 5 })
-  .filter((mappings) => {
-    const locals = mappings.map((m) => m.local);
-    const remotes = mappings.map((m) => m.remote);
-    return new Set(locals).size === locals.length && new Set(remotes).size === remotes.length;
-  });
+const arbMappings = fc.array(arbPathMapping, { minLength: 1, maxLength: 5 }).filter((mappings) => {
+  const locals = mappings.map((m) => m.local);
+  const remotes = mappings.map((m) => m.remote);
+  return new Set(locals).size === locals.length && new Set(remotes).size === remotes.length;
+});
 
 /** Generate a remote path that starts with one of the remote mapping prefixes. */
 function arbRemotePath(mappings: PathMapping[]): fc.Arbitrary<string> {
@@ -47,7 +43,14 @@ function arbRemotePath(mappings: PathMapping[]): fc.Arbitrary<string> {
 /** Generate a DAP stack frame with a source path from the remote mapping space. */
 function arbStackFrames(mappings: PathMapping[]) {
   return fc.array(
-    fc.tuple(fc.nat({ max: 999 }), fc.string({ minLength: 1, maxLength: 20 }), arbRemotePath(mappings), fc.nat({ max: 500 }), fc.nat({ max: 200 }))
+    fc
+      .tuple(
+        fc.nat({ max: 999 }),
+        fc.string({ minLength: 1, maxLength: 20 }),
+        arbRemotePath(mappings),
+        fc.nat({ max: 500 }),
+        fc.nat({ max: 200 }),
+      )
       .map(([id, name, path, line, col]) => ({
         id,
         name,
@@ -67,9 +70,7 @@ describe('Stack trace path mapping property tests', () => {
   it('all source paths in stack frames are mapped from remote to local', async () => {
     await fc.assert(
       fc.asyncProperty(
-        arbMappings.chain((mappings) =>
-          arbStackFrames(mappings).map((frames) => ({ mappings, frames })),
-        ),
+        arbMappings.chain((mappings) => arbStackFrames(mappings).map((frames) => ({ mappings, frames }))),
         async ({ mappings, frames }) => {
           const pathMapper = new PathMapper(mappings);
 

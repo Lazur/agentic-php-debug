@@ -20,11 +20,7 @@ export interface DebugBackend {
   configurationDone(): Promise<DebugProtocol.ConfigurationDoneResponse>;
 
   /** Send a generic DAP request and wait for response. */
-  sendRequest<T extends DebugProtocol.Response>(
-    command: string,
-    args?: object,
-    timeout?: number,
-  ): Promise<T>;
+  sendRequest<T extends DebugProtocol.Response>(command: string, args?: object, timeout?: number): Promise<T>;
 
   /** Disconnect and clean up. */
   disconnect(): Promise<void>;

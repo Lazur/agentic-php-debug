@@ -1,7 +1,7 @@
 # Debug plan format (`*.debugplan.json`, version 1)
 
 Every field, its default, and what it is for. The authoritative schema is
-`schemas/debug-plan.v1.schema.json` in `ts-php-debug-mcp` (generated from `src/plan/schema.ts`, and
+`schemas/debug-plan.v1.schema.json` in `agentic-php-debug` (generated from `src/plan/schema.ts`, and
 published by the MCP server as `php-debug://schemas/debug-plan.v1.json`). Unknown fields are
 rejected rather than ignored, so a typo fails validation instead of silently doing nothing.
 

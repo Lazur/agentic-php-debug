@@ -40,7 +40,9 @@ const evaluateItemSchema = z.union([
       volatile: z
         .boolean()
         .optional()
-        .describe('The value differs between runs (time, random, object ids). Captured, but excluded from golden comparison.'),
+        .describe(
+          'The value differs between runs (time, random, object ids). Captured, but excluded from golden comparison.',
+        ),
     })
     .strict(),
 ]);
@@ -86,24 +88,20 @@ export const CaptureSpecSchema = z
               .array(z.string().min(1))
               .max(5)
               .optional()
-              .describe('Scope names to dump (default ["Locals"]), e.g. ["Locals", "Superglobals"]. See redact.scopes.'),
+              .describe(
+                'Scope names to dump (default ["Locals"]), e.g. ["Locals", "Superglobals"]. See redact.scopes.',
+              ),
           })
           .strict(),
       ])
       .optional()
       .describe('Dump variables of the stopped frame. Omit or false to skip (the default).'),
-    exception: z
-      .boolean()
-      .optional()
-      .describe('Also record debug_exception_info. Automatic for exception stops.'),
+    exception: z.boolean().optional().describe('Also record debug_exception_info. Automatic for exception stops.'),
   })
   .strict();
 
 const probeCommon = {
-  tests: z
-    .array(idSchema)
-    .optional()
-    .describe('Ids of the hypotheses whose outcome this probe discriminates'),
+  tests: z.array(idSchema).optional().describe('Ids of the hypotheses whose outcome this probe discriminates'),
   capture: CaptureSpecSchema.optional().describe('What to record at each hit (default: the stopped frame only)'),
   maxCaptures: z
     .number()
@@ -120,7 +118,9 @@ export const ProbeSchema = z
     file: z
       .string()
       .min(1)
-      .describe('LOCAL path of the PHP file, relative to the plan root or absolute. Path mappings are applied by the server.'),
+      .describe(
+        'LOCAL path of the PHP file, relative to the plan root or absolute. Path mappings are applied by the server.',
+      ),
     line: z
       .number()
       .int()
@@ -130,11 +130,7 @@ export const ProbeSchema = z
           'brace is accepted by the adapter and then never hits.',
       ),
     condition: z.string().min(1).optional().describe('PHP condition; the probe only stops when it is truthy'),
-    hitCondition: z
-      .string()
-      .min(1)
-      .optional()
-      .describe('Xdebug hit condition, e.g. ">= 3" or "% 10"'),
+    hitCondition: z.string().min(1).optional().describe('Xdebug hit condition, e.g. ">= 3" or "% 10"'),
     ...probeCommon,
   })
   .strict();
@@ -227,7 +223,9 @@ export const PlanSessionSchema = z
     pathMappings: z
       .record(z.string(), z.string())
       .optional()
-      .describe('Server path → local path. Honoured where the session is built per run; a running MCP server keeps its own.'),
+      .describe(
+        'Server path → local path. Honoured where the session is built per run; a running MCP server keeps its own.',
+      ),
     backendMode: z
       .enum(['ui', 'headless'])
       .optional()
@@ -253,7 +251,13 @@ export const LimitsSchema = z
       .max(600_000)
       .optional()
       .describe('Quiet time after the trigger finished and every connection closed before the run ends (default 1500)'),
-    maxStops: z.number().int().min(1).max(10_000).optional().describe('Stop the run after this many stops (default 200)'),
+    maxStops: z
+      .number()
+      .int()
+      .min(1)
+      .max(10_000)
+      .optional()
+      .describe('Stop the run after this many stops (default 200)'),
     evaluateTimeoutMs: z
       .number()
       .int()
@@ -269,7 +273,9 @@ export const RedactSchema = z
     names: z
       .array(z.string())
       .optional()
-      .describe('Case-insensitive name fragments whose values are replaced by "[redacted]". Replaces the default list.'),
+      .describe(
+        'Case-insensitive name fragments whose values are replaced by "[redacted]". Replaces the default list.',
+      ),
     scopes: z
       .array(z.string())
       .optional()
@@ -300,7 +306,10 @@ const ValueExpectationSchema = z
       .string()
       .min(1)
       .describe('Expression whose value is checked; it is added to the probe capture automatically'),
-    equals: z.string().optional().describe('Exact value as the debugger renders it, e.g. "3.35", "true", "\\"abc\\"" (strings in double quotes)'),
+    equals: z
+      .string()
+      .optional()
+      .describe('Exact value as the debugger renders it, e.g. "3.35", "true", "\\"abc\\"" (strings in double quotes)'),
     matches: z.string().optional().describe('JavaScript regular expression the rendered value must match'),
     type: z.string().optional().describe('Expected PHP type as reported, e.g. "float", "int", "string"'),
   })
@@ -415,7 +424,7 @@ export type RunOutcome = (typeof RUN_OUTCOMES)[number];
 export function planJsonSchema(): Record<string, unknown> {
   return {
     ...(z.toJSONSchema(DebugPlanSchema) as Record<string, unknown>),
-    $id: 'https://github.com/Lazur/php-debug-mcp/schemas/debug-plan.v1.schema.json',
+    $id: 'https://github.com/Lazur/agentic-php-debug/schemas/debug-plan.v1.schema.json',
     title: 'PHP debug plan (v1)',
   };
 }

@@ -53,7 +53,11 @@ describe.skipIf(!php)(`plans against real Xdebug (${php ?? 'unavailable'})`, () 
         let stdout: string;
         let status = 0;
         try {
-          stdout = execFileSync(process.execPath, args, { cwd: root, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] });
+          stdout = execFileSync(process.execPath, args, {
+            cwd: root,
+            encoding: 'utf-8',
+            stdio: ['ignore', 'pipe', 'pipe'],
+          });
         } catch (err) {
           const e = err as { status: number; stdout: string };
           status = e.status;
@@ -84,18 +88,35 @@ describe.skipIf(!php)('plan mode as an agent sees it', () => {
     await client.connect(
       new StdioClientTransport({
         command: process.execPath,
-        args: [join(root, 'dist', 'index.js'), '--config', config, '--mode', 'plan', '--allow-command-trigger', '--runs-dir', join(dir, 'runs')],
+        args: [
+          join(root, 'dist', 'index.js'),
+          '--config',
+          config,
+          '--mode',
+          'plan',
+          '--allow-command-trigger',
+          '--runs-dir',
+          join(dir, 'runs'),
+        ],
         cwd: root,
         stderr: 'ignore',
       }),
     );
     try {
       const { tools } = await client.listTools();
-      expect(tools.map((t) => t.name).sort()).toEqual(['debug_plan_report', 'debug_plan_run', 'debug_plan_validate', 'debug_status']);
+      expect(tools.map((t) => t.name).sort()).toEqual([
+        'debug_plan_report',
+        'debug_plan_run',
+        'debug_plan_validate',
+        'debug_status',
+      ]);
 
       const { prompts } = await client.listPrompts();
       expect(prompts.map((p) => p.name)).toEqual(['debug_plan']);
-      const prompt = await client.getPrompt({ name: 'debug_plan', arguments: { problem: 'cart total is off by a cent' } });
+      const prompt = await client.getPrompt({
+        name: 'debug_plan',
+        arguments: { problem: 'cart total is off by a cent' },
+      });
       expect(JSON.stringify(prompt.messages)).toContain('cart total is off by a cent');
 
       const schema = await client.readResource({ uri: 'php-debug://schemas/debug-plan.v1.json' });
@@ -110,9 +131,14 @@ describe.skipIf(!php)('plan mode as an agent sees it', () => {
       expect(summary.outcome).toBe('completed');
       expect(summary.predictions.map((p: { verdict: string }) => p.verdict)).toEqual(['refuted', 'supported']);
 
-      const normalized = await client.callTool({ name: 'debug_plan_report', arguments: { runId: summary.runId, section: 'normalized' } });
+      const normalized = await client.callTool({
+        name: 'debug_plan_report',
+        arguments: { runId: summary.runId, section: 'normalized' },
+      });
       const report = JSON.parse((normalized.content as Array<{ text: string }>)[0].text).data.normalized;
-      expect(report).toEqual(JSON.parse(readFileSync(join(root, 'e2e', 'golden', 'cart-rounding.golden.json'), 'utf-8')));
+      expect(report).toEqual(
+        JSON.parse(readFileSync(join(root, 'e2e', 'golden', 'cart-rounding.golden.json'), 'utf-8')),
+      );
     } finally {
       await client.close();
     }
@@ -126,15 +152,29 @@ describe.skipIf(!php)('react mode as an agent sees it', () => {
     writeFileSync(config, JSON.stringify({ pathMappings: { '/app': root }, port: 9013 }));
     const client = new Client({ name: 'e2e', version: '0' });
     await client.connect(
-      new StdioClientTransport({ command: process.execPath, args: [join(root, 'dist', 'index.js'), '--config', config], cwd: root, stderr: 'ignore' }),
+      new StdioClientTransport({
+        command: process.execPath,
+        args: [join(root, 'dist', 'index.js'), '--config', config],
+        cwd: root,
+        stderr: 'ignore',
+      }),
     );
     const call = async (name: string, args: Record<string, unknown> = {}) => {
       const r = await client.callTool({ name, arguments: args }, undefined, { timeout: 60_000 });
-      return JSON.parse((r.content as Array<{ text: string }>)[0].text) as { success: boolean; data: any; error?: unknown };
+      return JSON.parse((r.content as Array<{ text: string }>)[0].text) as {
+        success: boolean;
+        data: any;
+        error?: unknown;
+      };
     };
     const php = spawn('sh', ['e2e/php.sh', 'e2e/fixtures/cart.php'], {
       cwd: root,
-      env: { ...process.env, XDEBUG_MODE: 'debug', XDEBUG_TRIGGER: '1', XDEBUG_CONFIG: 'client_host=127.0.0.1 client_port=9013' },
+      env: {
+        ...process.env,
+        XDEBUG_MODE: 'debug',
+        XDEBUG_TRIGGER: '1',
+        XDEBUG_CONFIG: 'client_host=127.0.0.1 client_port=9013',
+      },
       stdio: 'ignore',
     });
     try {
@@ -145,7 +185,8 @@ describe.skipIf(!php)('react mode as an agent sees it', () => {
       // Launch first, then PHP: the connection arrives after the breakpoint is armed.
       let first: any;
       for (let i = 0; i < 5; i++) {
-        first = (await call('debug_wait', { timeout: 30_000, snapshot: { watch: ['$raw'], locals: { depth: 0 } } })).data;
+        first = (await call('debug_wait', { timeout: 30_000, snapshot: { watch: ['$raw'], locals: { depth: 0 } } }))
+          .data;
         if (first.status.state === 'paused') break;
       }
       expect(first.snapshot.location).toMatchObject({ file, line: 24, function: 'Cart->lineTotal' });

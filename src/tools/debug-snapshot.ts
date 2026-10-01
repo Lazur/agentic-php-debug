@@ -1,7 +1,14 @@
 import { z } from 'zod';
 import type { SessionManager } from '../session.js';
 import { SessionState } from '../session.js';
-import { captureStop, type CaptureError, type ExceptionRecord, type FrameRecord, type RawFrame, type ValueRecord } from '../plan/capture.js';
+import {
+  captureStop,
+  type CaptureError,
+  type ExceptionRecord,
+  type FrameRecord,
+  type RawFrame,
+  type ValueRecord,
+} from '../plan/capture.js';
 import type { ToolInvoker } from '../plan/invoker.js';
 import { Redactor } from '../plan/redact.js';
 import { PLAN_DEFAULTS } from '../plan/validate.js';
@@ -20,25 +27,37 @@ export const snapshotOptionsSchema = z.object({
     .array(z.string().min(1))
     .max(20)
     .optional()
-    .describe('Expressions to add to this session\'s watch list. Watches are evaluated in the top frame at every snapshot.'),
+    .describe(
+      "Expressions to add to this session's watch list. Watches are evaluated in the top frame at every snapshot.",
+    ),
   unwatch: z.array(z.string().min(1)).max(20).optional().describe('Expressions to drop from the watch list'),
   locals: z
     .union([
       z.literal(false),
       z
         .object({
-          depth: z.number().int().min(0).max(3).optional().describe('Expansion depth of arrays/objects (default 0: names and scalar values)'),
+          depth: z
+            .number()
+            .int()
+            .min(0)
+            .max(3)
+            .optional()
+            .describe('Expansion depth of arrays/objects (default 0: names and scalar values)'),
           maxItems: z.number().int().min(1).max(200).optional().describe('Variables kept per container (default 40)'),
         })
         .strict(),
     ])
     .optional()
     .describe('Locals of the top frame (default depth 0); false to skip'),
-  diff: z.boolean().optional().describe('Include `delta` against this thread\'s previous snapshot (default true)'),
+  diff: z.boolean().optional().describe("Include `delta` against this thread's previous snapshot (default true)"),
 });
 
 export const debugSnapshotSchema = snapshotOptionsSchema.extend({
-  threadId: z.number().int().optional().describe('Suspended thread to observe. Defaults to the one that stopped most recently.'),
+  threadId: z
+    .number()
+    .int()
+    .optional()
+    .describe('Suspended thread to observe. Defaults to the one that stopped most recently.'),
 });
 
 export type SnapshotOptions = z.infer<typeof snapshotOptionsSchema>;
@@ -108,7 +127,8 @@ const redactor = new Redactor([...PLAN_DEFAULTS.redactNames], [...PLAN_DEFAULTS.
 function inspectionInvoker(session: SessionManager): ToolInvoker {
   return {
     surface: 'in-process',
-    tools: async () => new Set(['debug_stack_trace', 'debug_evaluate', 'debug_scopes', 'debug_variables', 'debug_exception_info']),
+    tools: async () =>
+      new Set(['debug_stack_trace', 'debug_evaluate', 'debug_scopes', 'debug_variables', 'debug_exception_info']),
     invoke: async (name, args) => {
       switch (name) {
         case 'debug_stack_trace':

@@ -3,7 +3,7 @@ import * as fc from 'fast-check';
 import { successResult, errorResult, ErrorCodes } from '../tools/types.js';
 import { McpNotificationSender } from '../notifications.js';
 
-// Feature: ts-php-debug-mcp, Property 12: Tool response envelope format
+// Feature: agentic-php-debug, Property 12: Tool response envelope format
 // **Validates: Requirements 11.1, 11.2, 11.3**
 describe('Property 12: Tool response envelope format', () => {
   it('successResult always produces { success: true, data }', () => {
@@ -20,25 +20,20 @@ describe('Property 12: Tool response envelope format', () => {
 
   it('errorResult always produces { success: false, error: { message, code } }', () => {
     fc.assert(
-      fc.property(
-        fc.string({ minLength: 1 }),
-        fc.constantFrom(...Object.values(ErrorCodes)),
-        (message, code) => {
-          const result = errorResult(message, code);
-          expect(result.success).toBe(false);
-          expect(result.error).toBeDefined();
-          expect(typeof result.error!.message).toBe('string');
-          expect(typeof result.error!.code).toBe('string');
-          expect(result.data).toBeUndefined();
-        },
-      ),
+      fc.property(fc.string({ minLength: 1 }), fc.constantFrom(...Object.values(ErrorCodes)), (message, code) => {
+        const result = errorResult(message, code);
+        expect(result.success).toBe(false);
+        expect(result.error).toBeDefined();
+        expect(typeof result.error!.message).toBe('string');
+        expect(typeof result.error!.code).toBe('string');
+        expect(result.data).toBeUndefined();
+      }),
       { numRuns: 100 },
     );
   });
 });
 
-
-// Feature: ts-php-debug-mcp, Property 13: Output event log level mapping
+// Feature: agentic-php-debug, Property 13: Output event log level mapping
 // **Validates: Requirements 10.2**
 describe('Property 13: Output event log level mapping', () => {
   function outputCategoryToLogLevel(category: string): string {
@@ -61,36 +56,32 @@ describe('Property 13: Output event log level mapping', () => {
   });
 });
 
-// Feature: ts-php-debug-mcp, Property 14: State change logging
+// Feature: agentic-php-debug, Property 14: State change logging
 // **Validates: Requirements 10.3**
 describe('Property 14: State change logging', () => {
   const states = ['not_started', 'initializing', 'listening', 'connected', 'paused', 'terminated'] as const;
 
   it('sendLog is called with info level for every state transition', () => {
     fc.assert(
-      fc.asyncProperty(
-        fc.constantFrom(...states),
-        fc.constantFrom(...states),
-        async (oldState, newState) => {
-          const mockServer = {
-            server: { notification: vi.fn().mockResolvedValue(undefined) },
-            sendLoggingMessage: vi.fn().mockResolvedValue(undefined),
-          };
-          const sender = new McpNotificationSender(mockServer as any);
+      fc.asyncProperty(fc.constantFrom(...states), fc.constantFrom(...states), async (oldState, newState) => {
+        const mockServer = {
+          server: { notification: vi.fn().mockResolvedValue(undefined) },
+          sendLoggingMessage: vi.fn().mockResolvedValue(undefined),
+        };
+        const sender = new McpNotificationSender(mockServer as any);
 
-          await sender.sendLog('info', `Session state: ${oldState} → ${newState}`);
+        await sender.sendLog('info', `Session state: ${oldState} → ${newState}`);
 
-          expect(mockServer.sendLoggingMessage).toHaveBeenCalledTimes(1);
-          const call = mockServer.sendLoggingMessage.mock.calls[0][0];
-          expect(call.level).toBe('info');
-        },
-      ),
+        expect(mockServer.sendLoggingMessage).toHaveBeenCalledTimes(1);
+        const call = mockServer.sendLoggingMessage.mock.calls[0][0];
+        expect(call.level).toBe('info');
+      }),
       { numRuns: 100 },
     );
   });
 });
 
-// Feature: ts-php-debug-mcp, Property 15: Progress token propagation
+// Feature: agentic-php-debug, Property 15: Progress token propagation
 // **Validates: Requirements 9.2**
 describe('Property 15: Progress token propagation', () => {
   it('sendProgress always includes the provided progressToken', () => {

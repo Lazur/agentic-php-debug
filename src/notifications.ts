@@ -21,12 +21,7 @@ export class McpNotificationSender implements NotificationSender {
   constructor(private readonly server: McpServer) {}
 
   /** Send a progress notification (notifications/progress). */
-  async sendProgress(
-    token: string | number,
-    progress: number,
-    total?: number,
-    message?: string,
-  ): Promise<void> {
+  async sendProgress(token: string | number, progress: number, total?: number, message?: string): Promise<void> {
     await this.server.server.notification({
       method: 'notifications/progress',
       params: {
@@ -39,14 +34,10 @@ export class McpNotificationSender implements NotificationSender {
   }
 
   /** Send a log notification (notifications/message). */
-  async sendLog(
-    level: string,
-    message: string,
-    data?: unknown,
-  ): Promise<void> {
+  async sendLog(level: string, message: string, data?: unknown): Promise<void> {
     await this.server.sendLoggingMessage({
       level: level as 'debug' | 'info' | 'notice' | 'warning' | 'error' | 'critical' | 'alert' | 'emergency',
-      logger: 'ts-php-debug-mcp',
+      logger: 'agentic-php-debug',
       data: data !== undefined ? data : message,
     });
   }
@@ -56,13 +47,10 @@ export class McpNotificationSender implements NotificationSender {
    * Uses the logging channel with a well-known logger name so clients can
    * distinguish debug events from generic log messages.
    */
-  async sendDebugEvent(
-    event: string,
-    details: Record<string, unknown>,
-  ): Promise<void> {
+  async sendDebugEvent(event: string, details: Record<string, unknown>): Promise<void> {
     await this.server.sendLoggingMessage({
       level: event === 'stopped' ? 'warning' : 'info',
-      logger: 'ts-php-debug-mcp/debugEvent',
+      logger: 'agentic-php-debug/debugEvent',
       data: { event, ...details },
     });
   }

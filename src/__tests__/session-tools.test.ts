@@ -77,16 +77,24 @@ function createMockDAPClient() {
   return { client: client as unknown as DAPClient, mockClient: client, fireEvent };
 }
 
-
 // --- debug_launch tests (Requirements 2.1, 2.2, 2.3) ---
 
 describe('handleDebugLaunch', () => {
   it('calls initialize → launch → configurationDone in order', async () => {
     const { client, mockClient } = createMockDAPClient();
     const callOrder: string[] = [];
-    mockClient.initialize.mockImplementation(async () => { callOrder.push('initialize'); return {}; });
-    mockClient.launch.mockImplementation(async () => { callOrder.push('launch'); return {}; });
-    mockClient.configurationDone.mockImplementation(async () => { callOrder.push('configurationDone'); return {}; });
+    mockClient.initialize.mockImplementation(async () => {
+      callOrder.push('initialize');
+      return {};
+    });
+    mockClient.launch.mockImplementation(async () => {
+      callOrder.push('launch');
+      return {};
+    });
+    mockClient.configurationDone.mockImplementation(async () => {
+      callOrder.push('configurationDone');
+      return {};
+    });
 
     const session = new SessionManager(stubConfig(), client, stubPathMapper(), stubNotifier());
     const result = await handleDebugLaunch(session, undefined, undefined, neverBound);
@@ -114,9 +122,7 @@ describe('handleDebugLaunch', () => {
     const config = stubConfig({ port: 9003, stopOnEntry: false });
     const session = new SessionManager(config, client, stubPathMapper(), stubNotifier());
 
-    const result = await handleDebugLaunch(
-      session, { stopOnEntry: true, port: 9999 }, undefined, neverBound,
-    );
+    const result = await handleDebugLaunch(session, { stopOnEntry: true, port: 9999 }, undefined, neverBound);
 
     // The result should reflect the overridden values
     const data = result.data as any;
@@ -126,9 +132,7 @@ describe('handleDebugLaunch', () => {
     // ...and so must the launch arguments actually sent to the adapter. Without
     // this the overrides can be echoed in the result while the adapter listens
     // on the un-overridden port.
-    expect(mockClient.launch).toHaveBeenCalledWith(
-      expect.objectContaining({ stopOnEntry: true, port: 9999 }),
-    );
+    expect(mockClient.launch).toHaveBeenCalledWith(expect.objectContaining({ stopOnEntry: true, port: 9999 }));
 
     // The original config must NOT be mutated (Req 17.1, 17.2)
     expect(config.stopOnEntry).toBe(false);

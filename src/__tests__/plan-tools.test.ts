@@ -75,7 +75,10 @@ describe('debug_plan_validate', () => {
   });
 
   it('reports command triggers as disabled when the server has not allowed them', () => {
-    const r = handleDebugPlanValidate({ plan: planFor() }, { baseDir: workspace(), surface: 'mcp', allowCommandTrigger: false });
+    const r = handleDebugPlanValidate(
+      { plan: planFor() },
+      { baseDir: workspace(), surface: 'mcp', allowCommandTrigger: false },
+    );
     expect(r.data).toMatchObject({ ok: false });
     expect(JSON.stringify(r.data)).toContain('--allow-command-trigger');
   });
@@ -87,10 +90,20 @@ describe('debug_plan_run', () => {
     const fake = new FakePhp();
     const store = new RunStore(join(dir, 'runs'));
     const progress: string[] = [];
-    const r = await handleDebugPlanRun({ plan: planFor() as never }, { ...context(dir, fake, twoHits(dir), store), reportProgress: (m) => progress.push(m) });
+    const r = await handleDebugPlanRun(
+      { plan: planFor() as never },
+      { ...context(dir, fake, twoHits(dir), store), reportProgress: (m) => progress.push(m) },
+    );
 
     expect(r.success).toBe(true);
-    const d = r.data as { runId: string; outcome: string; probes: Record<string, { hits: number }>; stops: Array<{ values: Record<string, string> }>; expectations: { passed: number; failed: number }; artifacts: string };
+    const d = r.data as {
+      runId: string;
+      outcome: string;
+      probes: Record<string, { hits: number }>;
+      stops: Array<{ values: Record<string, string> }>;
+      expectations: { passed: number; failed: number };
+      artifacts: string;
+    };
     expect(d.outcome).toBe('completed');
     expect(d.probes['line-total'].hits).toBe(2);
     expect(d.stops[0].values['$lineTotal']).toBe('3.35 (float)');
@@ -100,7 +113,9 @@ describe('debug_plan_run', () => {
     expect(progress.some((m) => m.startsWith('[execute] stop 1'))).toBe(true);
 
     const detail = handleDebugPlanReport({ runId: d.runId, stop: 2 }, { store });
-    expect((detail.data as { stop: { evaluate: Record<string, { value: string }> } }).stop.evaluate.$lineTotal.value).toBe('2.5');
+    expect(
+      (detail.data as { stop: { evaluate: Record<string, { value: string }> } }).stop.evaluate.$lineTotal.value,
+    ).toBe('2.5');
 
     const journal = handleDebugPlanReport({ section: 'journal', limit: 3 }, { store });
     const page = journal.data as { items: Array<{ tool: string }>; total: number; nextOffset?: number };
@@ -108,14 +123,20 @@ describe('debug_plan_run', () => {
     expect(page.nextOffset).toBe(3);
 
     // A fresh store over the same directory still finds the run.
-    const reopened = handleDebugPlanReport({ runId: d.runId, probe: 'line-total' }, { store: new RunStore(join(dir, 'runs')) });
+    const reopened = handleDebugPlanReport(
+      { runId: d.runId, probe: 'line-total' },
+      { store: new RunStore(join(dir, 'runs')) },
+    );
     expect((reopened.data as { total: number }).total).toBe(2);
   });
 
   it('runs nothing for an invalid plan', async () => {
     const dir = workspace();
     const fake = new FakePhp();
-    const r = await handleDebugPlanRun({ plan: planFor({ probes: [{ id: 'x', file: 'missing.php', line: 1 }] }) as never }, context(dir, fake, []));
+    const r = await handleDebugPlanRun(
+      { plan: planFor({ probes: [{ id: 'x', file: 'missing.php', line: 1 }] }) as never },
+      context(dir, fake, []),
+    );
     expect(r.error?.code).toBe('PLAN_INVALID');
     expect(r.error?.message).toContain('File not found');
     expect(fake.requests).toEqual([]);
@@ -134,6 +155,8 @@ describe('debug_plan_run', () => {
 describe('debug_plan_report', () => {
   it('explains when there is nothing to read', () => {
     expect(handleDebugPlanReport({}, { store: new RunStore() }).error?.code).toBe('RUN_NOT_FOUND');
-    expect(handleDebugPlanReport({ runId: 'nope' }, { store: new RunStore() }).error?.message).toContain('No run "nope"');
+    expect(handleDebugPlanReport({ runId: 'nope' }, { store: new RunStore() }).error?.message).toContain(
+      'No run "nope"',
+    );
   });
 });

@@ -91,12 +91,17 @@ describe('describeVerification — unresolved is not rejected (DBGP section 7.6)
   it("prefers DAP's Breakpoint.reason over the message heuristic when present", () => {
     // Forward compatibility: if upstream starts populating `reason`, it wins.
     const failedNoMessage = describeVerification(SessionState.Paused, {
-      verified: false, reason: 'failed', at: Date.now(),
+      verified: false,
+      reason: 'failed',
+      at: Date.now(),
     });
     expect(failedNoMessage.status).toBe('rejected');
 
     const pendingWithMessage = describeVerification(SessionState.Paused, {
-      verified: false, reason: 'pending', message: 'not loaded yet', at: Date.now(),
+      verified: false,
+      reason: 'pending',
+      message: 'not loaded yet',
+      at: Date.now(),
     });
     expect(pendingWithMessage.status).toBe('unresolved');
   });
@@ -114,7 +119,10 @@ describe('describeBreakpoints', () => {
   it('never emits the raw verified key, whatever the adapter returned', () => {
     const { ctx } = context(SessionState.Paused);
     const out = describeBreakpoints(
-      [{ id: 1, line: 10, verified: true }, { id: 2, line: 20, verified: false }],
+      [
+        { id: 1, line: 10, verified: true },
+        { id: 2, line: 20, verified: false },
+      ],
       ctx,
     );
     for (const bp of out) expect(bp).not.toHaveProperty('verified');
@@ -145,13 +153,11 @@ describe('detectStateMismatch', () => {
   // The one bit the raw flag does carry is "a connection exists", which makes
   // it an independent witness against our own state.
   it('flags a connection we never noticed', () => {
-    expect(detectStateMismatch([{ verified: false }], SessionState.Listening))
-      .toContain('live Xdebug connection');
+    expect(detectStateMismatch([{ verified: false }], SessionState.Listening)).toContain('live Xdebug connection');
   });
 
   it('flags a connection that has gone away', () => {
-    expect(detectStateMismatch([{ verified: true }], SessionState.Paused))
-      .toContain('no live Xdebug connection');
+    expect(detectStateMismatch([{ verified: true }], SessionState.Paused)).toContain('no live Xdebug connection');
   });
 
   it('stays quiet when the adapter and our state agree', () => {

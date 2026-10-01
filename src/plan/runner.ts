@@ -13,7 +13,12 @@ import {
   type CaptureLimits,
   type RawFrame,
 } from './capture.js';
-import { startTrigger as defaultStartTrigger, type TriggerContext, type TriggerHandle, type TriggerResult } from './trigger.js';
+import {
+  startTrigger as defaultStartTrigger,
+  type TriggerContext,
+  type TriggerHandle,
+  type TriggerResult,
+} from './trigger.js';
 import {
   evaluateExpectations,
   evaluatePredictions,
@@ -129,10 +134,7 @@ class PlanRun {
     this.startTrigger = opts.startTrigger ?? defaultStartTrigger;
 
     const all = this.allProbes();
-    this.stackLevels = Math.max(
-      plan.onUnmatchedStop === 'record' ? 5 : 1,
-      ...all.map((p) => framesNeeded(p.capture)),
-    );
+    this.stackLevels = Math.max(plan.onUnmatchedStop === 'record' ? 5 : 1, ...all.map((p) => framesNeeded(p.capture)));
     for (const p of all) this.probeSummaries[p.id] = { kind: p.kind, hits: 0, captured: 0 };
   }
 
@@ -148,10 +150,18 @@ class PlanRun {
       }
     } catch (err) {
       this.end('failed', 'The runner failed internally.');
-      this.errors.push({ phase: 'execute', code: 'INTERNAL', message: err instanceof Error ? err.stack ?? err.message : String(err) });
+      this.errors.push({
+        phase: 'execute',
+        code: 'INTERNAL',
+        message: err instanceof Error ? (err.stack ?? err.message) : String(err),
+      });
     } finally {
       await this.teardown().catch((err) => {
-        this.errors.push({ phase: 'teardown', code: 'INTERNAL', message: err instanceof Error ? err.message : String(err) });
+        this.errors.push({
+          phase: 'teardown',
+          code: 'INTERNAL',
+          message: err instanceof Error ? err.message : String(err),
+        });
       });
     }
     return this.buildReport();
@@ -236,7 +246,9 @@ class PlanRun {
           'BREAKPOINT_NOT_ARMED',
           'Breakpoints must be registered before PHP starts, and these were not: ' +
             notArmed
-              .map(({ p, bp }) => `${p.id} → ${bp?.verification ?? 'no answer'}${bp?.message ? ` (${bp.message})` : ''}`)
+              .map(
+                ({ p, bp }) => `${p.id} → ${bp?.verification ?? 'no answer'}${bp?.message ? ` (${bp.message})` : ''}`,
+              )
               .join('; '),
           'debug_set_breakpoints',
         );
@@ -271,7 +283,8 @@ class PlanRun {
         this.failFrom('initialize', 'debug_set_function_breakpoints', r);
         return false;
       }
-      const bps = (r.data as { breakpoints?: Array<{ verification?: string; message?: string }> } | undefined)?.breakpoints;
+      const bps = (r.data as { breakpoints?: Array<{ verification?: string; message?: string }> } | undefined)
+        ?.breakpoints;
       this.plan.functions.forEach((f, i) =>
         this.breakpoints.push({
           probe: f.id,
@@ -426,7 +439,13 @@ class PlanRun {
       if (w.success && (w.data as WaitData | undefined)?.status) return w.data as WaitData;
       // A cancelled request over MCP rejects client-side without a payload;
       // fall back to a plain status read so the loop can still decide.
-      if (!w.success && !abort.signal.aborted) this.errors.push({ phase: 'execute', tool: 'debug_wait', code: w.error?.code ?? 'DAP_ERROR', message: w.error?.message ?? 'debug_wait failed' });
+      if (!w.success && !abort.signal.aborted)
+        this.errors.push({
+          phase: 'execute',
+          tool: 'debug_wait',
+          code: w.error?.code ?? 'DAP_ERROR',
+          message: w.error?.message ?? 'debug_wait failed',
+        });
       const st = await this.call('debug_status', {});
       return st.success ? { reason: 'status', status: st.data as StatusData } : undefined;
     } finally {
@@ -475,14 +494,23 @@ class PlanRun {
       if (summary.captured < probe.maxCaptures && frames.length > 0) {
         summary.captured++;
         stop.captured = true;
-        const cap = await captureStop(this.opts.invoker, { threadId, frames, reason }, probe.capture, this.redactor, this.captureLimits);
+        const cap = await captureStop(
+          this.opts.invoker,
+          { threadId, frames, reason },
+          probe.capture,
+          this.redactor,
+          this.captureLimits,
+        );
         stop.frames = cap.frames;
         if (cap.evaluate) stop.evaluate = cap.evaluate;
         if (cap.locals) stop.locals = cap.locals;
         if (cap.exception) stop.exception = cap.exception;
         if (cap.errors) stop.errors = [...(stop.errors ?? []), ...cap.errors];
       }
-      this.progress('execute', `stop ${this.handledStops}: ${probe.id} hit ${stop.hit}${stop.captured ? '' : ' (counted, not captured)'}`);
+      this.progress(
+        'execute',
+        `stop ${this.handledStops}: ${probe.id} hit ${stop.hit}${stop.captured ? '' : ' (counted, not captured)'}`,
+      );
       this.stops.push(stop);
     } else if (kind === 'entry') {
       this.stops.push(stop);
@@ -494,7 +522,11 @@ class PlanRun {
         this.stops.push(stop);
       }
       if (this.plan.onUnmatchedStop === 'abort') {
-        this.errors.push({ phase: 'execute', code: 'UNMATCHED_STOP', message: `Stopped (${reason}) at ${where}, which no probe explains.` });
+        this.errors.push({
+          phase: 'execute',
+          code: 'UNMATCHED_STOP',
+          message: `Stopped (${reason}) at ${where}, which no probe explains.`,
+        });
         return 'abort';
       }
       this.progress('execute', `stop ${this.handledStops}: unmatched (${reason}) at ${where}`);
@@ -506,7 +538,9 @@ class PlanRun {
   private match(reason: string, top: RawFrame | undefined): { probe: ResolvedProbe | null; kind: StopKind } {
     if (reason === 'entry') return { probe: null, kind: 'entry' };
     if (reason === 'exception') {
-      return this.plan.exceptions ? { probe: this.plan.exceptions, kind: 'exception' } : { probe: null, kind: 'unmatched' };
+      return this.plan.exceptions
+        ? { probe: this.plan.exceptions, kind: 'exception' }
+        : { probe: null, kind: 'unmatched' };
     }
     if (top) {
       if (top.source?.path !== undefined && top.line !== undefined) {
@@ -531,7 +565,12 @@ class PlanRun {
       if (!r.success) {
         // The thread is gone (connection closed, session over): nothing to resume.
         if (r.error?.code === 'SESSION_NOT_PAUSED' || r.error?.code === 'SESSION_TERMINATED') return 'ok';
-        this.errors.push({ phase: 'execute', tool: 'debug_continue', code: r.error?.code ?? 'DAP_ERROR', message: r.error?.message ?? 'continue failed' });
+        this.errors.push({
+          phase: 'execute',
+          tool: 'debug_continue',
+          code: r.error?.code ?? 'DAP_ERROR',
+          message: r.error?.message ?? 'continue failed',
+        });
         continue;
       }
       if ((r.data as { resumed?: boolean } | undefined)?.resumed !== false) return 'ok';
@@ -572,7 +611,12 @@ class PlanRun {
         }
         const r = await this.call('debug_terminate', {});
         if (!r.success) {
-          this.errors.push({ phase: 'teardown', tool: 'debug_terminate', code: r.error?.code ?? 'DAP_ERROR', message: r.error?.message ?? 'terminate failed' });
+          this.errors.push({
+            phase: 'teardown',
+            tool: 'debug_terminate',
+            code: r.error?.code ?? 'DAP_ERROR',
+            message: r.error?.message ?? 'terminate failed',
+          });
         }
       }
       if (this.trigger) {

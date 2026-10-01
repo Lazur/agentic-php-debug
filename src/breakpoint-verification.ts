@@ -75,10 +75,8 @@ export interface VerificationDescription {
 }
 
 const DETAIL: Record<VerificationStatus, string> = {
-  verified:
-    'The debug adapter confirmed this breakpoint is resolved on the live Xdebug connection.',
-  rejected:
-    'The debug adapter reported that it could not set this breakpoint.',
+  verified: 'The debug adapter confirmed this breakpoint is resolved on the live Xdebug connection.',
+  rejected: 'The debug adapter reported that it could not set this breakpoint.',
   unresolved:
     'Xdebug accepted this breakpoint but reports it as UNRESOLVED — normally because the file is not loaded yet (lazy autoload). This is NOT a failure: Xdebug resolves it and notifies the adapter once the file is compiled, and debug_status will show it verified from then on. If it never resolves, the path mapping or the line number is wrong.',
   pending_connection:
@@ -96,10 +94,7 @@ const DETAIL: Record<VerificationStatus, string> = {
  * result. Otherwise session state alone decides. The adapter's raw boolean is
  * deliberately never consulted; see the VerificationStatus docs for why.
  */
-export function describeVerification(
-  state: SessionState,
-  recorded?: VerificationRecord,
-): VerificationDescription {
+export function describeVerification(state: SessionState, recorded?: VerificationRecord): VerificationDescription {
   if (recorded) {
     // `verified: false` does NOT mean rejected. The adapter derives it from
     // `ret.resolved !== 'unresolved'` (breakpoints.ts:359), so an accepted but
@@ -164,10 +159,7 @@ export interface VerificationContext {
  * Map a DAP setBreakpoints response onto honest statuses, and register any
  * write the adapter has staged rather than sent.
  */
-export function describeBreakpoints(
-  breakpoints: DapBreakpoint[],
-  session: VerificationContext,
-): ReportedBreakpoint[] {
+export function describeBreakpoints(breakpoints: DapBreakpoint[], session: VerificationContext): ReportedBreakpoint[] {
   if (session.state === SessionState.Connected) {
     const ids = breakpoints.map((bp) => bp.id).filter((id): id is number => id !== undefined);
     if (ids.length > 0) session.markBreakpointsStaged(ids);
@@ -191,10 +183,7 @@ export function describeBreakpoints(
  * does carry: whether a live Xdebug connection exists. A disagreement means our
  * state is stale — a connection arrived or died without us noticing.
  */
-export function detectStateMismatch(
-  breakpoints: DapBreakpoint[],
-  state: SessionState,
-): string | undefined {
+export function detectStateMismatch(breakpoints: DapBreakpoint[], state: SessionState): string | undefined {
   const raw = breakpoints.find((bp) => bp.verified !== undefined)?.verified;
   if (raw === undefined) return undefined;
 

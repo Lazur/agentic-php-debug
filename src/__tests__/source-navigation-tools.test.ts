@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { handleDebugSource } from '../tools/debug-source.js';
 import { handleDebugThreads } from '../tools/debug-threads.js';
 import { handleDebugExceptionInfo } from '../tools/debug-exception-info.js';
-import { SessionManager, SessionState, type NotificationSender } from '../session.js';
+import { SessionManager, type NotificationSender } from '../session.js';
 import type { DAPClient } from '../dap-client.js';
 import { PathMapper } from '../path-mapper.js';
 import type { Config } from '../config.js';

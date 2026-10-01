@@ -3,6 +3,7 @@ import type { SessionManager } from '../session.js';
 import { SessionState } from '../session.js';
 import { successResult, ErrorCodes, type ToolResult } from './types.js';
 import { toolError } from './errors.js';
+import type { DebugProtocol } from '@vscode/debugprotocol';
 
 export const debugThreadsSchema = z.object({});
 
@@ -12,16 +13,13 @@ export const debugThreadsDescription = `List all active threads in the debug ses
 
 Requires the session to be in connected or paused state.`;
 
-export async function handleDebugThreads(
-  session: SessionManager,
-  _args?: DebugThreadsInput,
-): Promise<ToolResult> {
+export async function handleDebugThreads(session: SessionManager, _args?: DebugThreadsInput): Promise<ToolResult> {
   try {
     session.assertState(SessionState.Paused, SessionState.Connected);
 
-    const response = await session.dapClient.sendRequest('threads');
-    const body = (response as any).body;
-    const threads = (body?.threads ?? []).map((t: any) => ({
+    const response = await session.dapClient.sendRequest<DebugProtocol.ThreadsResponse>('threads');
+    const body = response.body;
+    const threads = (body?.threads ?? []).map((t) => ({
       id: t.id,
       name: t.name,
     }));

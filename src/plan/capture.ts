@@ -156,7 +156,11 @@ export async function captureStop(
         timeout: limits.evaluateTimeoutMs,
       });
       const record: ValueRecord = r.success
-        ? renderValue((r.data as { result?: string } | undefined)?.result, (r.data as { type?: string } | undefined)?.type, limits)
+        ? renderValue(
+            (r.data as { result?: string } | undefined)?.result,
+            (r.data as { type?: string } | undefined)?.type,
+            limits,
+          )
         : { error: { code: r.error?.code ?? 'DAP_ERROR', message: r.error?.message ?? 'evaluate failed' } };
       // Volatile applies to failures too: a clock read that errors today and
       // succeeds tomorrow must not break a golden comparison either way.
@@ -170,7 +174,7 @@ export async function captureStop(
     if (!sr.success) {
       errors.push(toCaptureError('debug_scopes', sr));
     } else {
-      const scopes = ((sr.data as { scopes?: Array<{ name: string; variablesReference: number }> })?.scopes ?? []);
+      const scopes = (sr.data as { scopes?: Array<{ name: string; variablesReference: number }> })?.scopes ?? [];
       const budget = { left: limits.maxVariableRequests };
       out.locals = {};
       for (const wanted of spec.locals.scopes) {
@@ -233,8 +237,9 @@ async function dumpVariables(invoker: ToolInvoker, ref: number, opts: DumpOption
     opts.errors.push(toCaptureError('debug_variables', r));
     return { variables: {} };
   }
-  const list = ((r.data as { variables?: Array<{ name: string; value?: string; type?: string; variablesReference?: number }> })
-    ?.variables ?? []);
+  const list =
+    (r.data as { variables?: Array<{ name: string; value?: string; type?: string; variablesReference?: number }> })
+      ?.variables ?? [];
   const kept = list.slice(0, opts.maxItems);
 
   const variables: Record<string, ValueRecord> = {};

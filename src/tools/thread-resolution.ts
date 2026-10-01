@@ -29,10 +29,7 @@ export interface ResolvedThread {
  * suspended, so the caller can report INVALID_PARAMS rather than sending a
  * request the adapter will reject.
  */
-export function resolveStoppedThreadId(
-  session: SessionManager,
-  explicit?: number,
-): ResolvedThread | undefined {
+export function resolveStoppedThreadId(session: SessionManager, explicit?: number): ResolvedThread | undefined {
   if (explicit !== undefined) return { threadId: explicit, ambiguous: false };
 
   const threadId = session.stopInfo?.threadId;
@@ -50,10 +47,7 @@ export function resolveStoppedThreadId(
  * instead, and only when there is exactly one — with several in flight there is
  * no defensible choice, and pausing the wrong one is worse than asking.
  */
-export function resolveRunningThreadId(
-  session: SessionManager,
-  explicit?: number,
-): number | undefined {
+export function resolveRunningThreadId(session: SessionManager, explicit?: number): number | undefined {
   if (explicit !== undefined) return explicit;
 
   const live = session.status.liveThreadIds;
@@ -62,9 +56,7 @@ export function resolveRunningThreadId(
 
 /** Phrase the ambiguity for a tool result, listing the other candidates. */
 export function ambiguousThreadNote(session: SessionManager, chosen: number): string {
-  const others = session.status.stoppedThreads
-    .map((t) => t.threadId)
-    .filter((id) => id !== chosen);
+  const others = session.status.stoppedThreads.map((t) => t.threadId).filter((id) => id !== chosen);
   return (
     `threadId was omitted and ${others.length + 1} threads are suspended; acted on thread ${chosen}. ` +
     `Other suspended thread ids: ${others.join(', ')}. Pass threadId explicitly to choose.`

@@ -3,7 +3,7 @@
 Five minutes from nothing to an agent that can set breakpoints in your running PHP.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Lazur/php-debug-mcp/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Lazur/agentic-php-debug/main/install.sh | bash
 ```
 
 This clones and builds the server into `~/.php-debug-mcp`, registers it with Claude Code and
@@ -149,8 +149,8 @@ Uninstall removes the MCP registrations, skill links, shims, the VS Code extensi
 What the script does, by hand:
 
 ```bash
-git clone https://github.com/Lazur/php-debug-mcp.git ts-php-debug-mcp   # dir name matters for the VS Code extension
-cd ts-php-debug-mcp && npm ci && npm run build
+git clone https://github.com/Lazur/agentic-php-debug.git agentic-php-debug   # dir name matters for the VS Code extension
+cd agentic-php-debug && npm ci && npm run build
 echo '{ "port": 9003, "pathMappings": {} }' > ~/php-debug.json
 claude mcp add -s user php-debug -- node "$PWD/dist/index.js" --config ~/php-debug.json --mode all
 ln -s "$PWD/skills/php-debug-modes" ~/.claude/skills/php-debug-modes

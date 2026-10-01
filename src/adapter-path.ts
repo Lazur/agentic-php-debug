@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
  */
 export function bundledAdapterPath(): string {
   if (!import.meta.url) {
-    throw new Error('adapterPath is required when ts-php-debug-mcp is bundled as CommonJS');
+    throw new Error('adapterPath is required when agentic-php-debug is bundled as CommonJS');
   }
   return fileURLToPath(new URL('./adapter/phpDebug.js', import.meta.url));
 }

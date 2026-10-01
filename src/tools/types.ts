@@ -81,11 +81,7 @@ export function successResult(data: unknown): ToolResult {
  * `detail` is spread conditionally on purpose: assigning it unconditionally
  * would put a `detail: undefined` key into every error payload the agent reads.
  */
-export function errorResult(
-  message: string,
-  code: string,
-  detail?: ToolErrorDetail,
-): ToolResult {
+export function errorResult(message: string, code: string, detail?: ToolErrorDetail): ToolResult {
   return {
     success: false,
     error: { message, code, ...(detail !== undefined ? { detail } : {}) },

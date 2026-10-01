@@ -80,7 +80,8 @@ describe('stale references — DAP object references die on resume', () => {
 
     expect(result.success).toBe(true);
     expect(mock.mockClient.sendRequest).toHaveBeenCalledWith(
-      'variables', expect.objectContaining({ variablesReference: 999999 }),
+      'variables',
+      expect.objectContaining({ variablesReference: 999999 }),
     );
   });
 
@@ -90,7 +91,7 @@ describe('stale references — DAP object references die on resume', () => {
     const mock = createMockBackend();
     wireResponses(mock, 7, 7);
     const session = await launchAndPause(mock);
-    await handleDebugStackTrace(session, { threadId: 1 });   // issues frameId 7 only
+    await handleDebugStackTrace(session, { threadId: 1 }); // issues frameId 7 only
 
     await advanceSuspension(mock, session);
 

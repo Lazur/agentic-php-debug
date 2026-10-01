@@ -3,13 +3,17 @@ import type { SessionManager } from '../session.js';
 import { SessionState } from '../session.js';
 import { successResult, ErrorCodes, type ToolResult } from './types.js';
 import { toolError } from './errors.js';
+import type { DebugProtocol } from '@vscode/debugprotocol';
 
 export const debugSourceSchema = z.object({
   sourceReference: z.number().int().describe('Source reference ID from a stack frame source object'),
-  source: z.object({
-    path: z.string().optional(),
-    sourceReference: z.number().int().optional(),
-  }).optional().describe('Optional source descriptor with path or sourceReference'),
+  source: z
+    .object({
+      path: z.string().optional(),
+      sourceReference: z.number().int().optional(),
+    })
+    .optional()
+    .describe('Optional source descriptor with path or sourceReference'),
 });
 
 export const debugSourceDescription = `Retrieve source code content by source reference. Use when a stack frame has a sourceReference instead of a file path (e.g., for dynamically evaluated code).
@@ -30,8 +34,8 @@ export async function handleDebugSource(
       dapArgs.source = args.source;
     }
 
-    const response = await session.dapClient.sendRequest('source', dapArgs);
-    const body = (response as any).body;
+    const response = await session.dapClient.sendRequest<DebugProtocol.SourceResponse>('source', dapArgs);
+    const body = response.body;
 
     return successResult({
       content: body?.content ?? '',

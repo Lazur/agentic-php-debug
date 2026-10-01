@@ -26,7 +26,13 @@ import { InProcessInvoker, JournalingInvoker, type JournalEntry, type ToolInvoke
 import { loadPlanFile, planBaseDir, validatePlan, type ValidationResult } from './validate.js';
 import { planJsonSchema } from './schema.js';
 import { runPlan } from './runner.js';
-import { compareToGolden, normalizeReport, summarizeReport, type GoldenComparison, type PlanRunReport } from './report.js';
+import {
+  compareToGolden,
+  normalizeReport,
+  summarizeReport,
+  type GoldenComparison,
+  type PlanRunReport,
+} from './report.js';
 
 const EXIT = { ok: 0, mismatch: 1, invalid: 2, failed: 3 } as const;
 
@@ -95,7 +101,9 @@ async function main(argv: string[]): Promise<number> {
   if (command === 'validate') {
     const result = validatePlan(input, { baseDir: planBaseDir(planPath) });
     if (values.json) {
-      process.stdout.write(`${JSON.stringify({ ok: result.ok, planHash: result.planHash, errors: result.errors, warnings: result.warnings }, null, 2)}\n`);
+      process.stdout.write(
+        `${JSON.stringify({ ok: result.ok, planHash: result.planHash, errors: result.errors, warnings: result.warnings }, null, 2)}\n`,
+      );
     } else {
       printValidation(result);
     }
@@ -216,7 +224,9 @@ async function run(planPath: string, input: unknown, flags: RunFlags): Promise<n
   const goldenOk = golden === undefined || golden.equal;
 
   if (flags.json) {
-    process.stdout.write(`${JSON.stringify({ ...summarizeReport(report), artifacts: outDir, ...(golden ? { golden } : {}) }, null, 2)}\n`);
+    process.stdout.write(
+      `${JSON.stringify({ ...summarizeReport(report), artifacts: outDir, ...(golden ? { golden } : {}) }, null, 2)}\n`,
+    );
   } else {
     printReport(report, outDir, golden);
   }
@@ -235,7 +245,9 @@ async function connect(via: string, config: Config, verbose: boolean): Promise<C
   if (via === 'in-process') {
     const backend = new DAPClient(config.adapterPath);
     if (verbose) backend.onStderr = (text) => process.stderr.write(`[adapter] ${text}`);
-    const pathMapper = new PathMapper(Object.entries(config.pathMappings).map(([remote, local]) => ({ remote, local })));
+    const pathMapper = new PathMapper(
+      Object.entries(config.pathMappings).map(([remote, local]) => ({ remote, local })),
+    );
     const session = new SessionManager(config, backend, pathMapper, new ConsoleNotifier(verbose));
     return {
       invoker: new InProcessInvoker(session),
@@ -270,7 +282,9 @@ async function connect(via: string, config: Config, verbose: boolean): Promise<C
       return { error: `Unknown --via "${via}". Use in-process, mcp-stdio or mcp-http=<url>.` };
     }
   } catch (err) {
-    return { error: `Could not connect to the MCP server (${via}): ${err instanceof Error ? err.message : String(err)}` };
+    return {
+      error: `Could not connect to the MCP server (${via}): ${err instanceof Error ? err.message : String(err)}`,
+    };
   }
 
   return {
@@ -304,7 +318,9 @@ function printReport(report: PlanRunReport, outDir: string, golden?: GoldenCompa
     const where = s.location ? `${s.location.file ?? '?'}:${s.location.line ?? '?'}` : '?';
     out.push(`  #${s.seq} ${s.probe ?? s.kind}${s.hit ? ` hit ${s.hit}` : ''} at ${where}`);
     for (const [expr, v] of Object.entries(s.evaluate ?? {})) {
-      out.push(`      ${expr} = ${v.error ? `!${v.error.code}` : v.redacted ? '[redacted]' : `${v.value}${v.type ? ` (${v.type})` : ''}`}`);
+      out.push(
+        `      ${expr} = ${v.error ? `!${v.error.code}` : v.redacted ? '[redacted]' : `${v.value}${v.type ? ` (${v.type})` : ''}`}`,
+      );
     }
   }
   if (report.stops.length > 20) out.push(`  … ${report.stops.length - 20} more stop(s) in report.json`);
@@ -314,11 +330,17 @@ function printReport(report: PlanRunReport, outDir: string, golden?: GoldenCompa
   for (const p of report.predictions) out.push(`  hypothesis ${p.hypothesis}: ${p.verdict}`);
   if (report.trigger) {
     const t = report.trigger;
-    out.push(`  trigger: ${t.kind}${t.exitCode !== undefined ? ` exit ${t.exitCode}` : ''}${t.status !== undefined ? ` HTTP ${t.status}` : ''}${t.error ? ` (${t.error})` : ''}`);
+    out.push(
+      `  trigger: ${t.kind}${t.exitCode !== undefined ? ` exit ${t.exitCode}` : ''}${t.status !== undefined ? ` HTTP ${t.status}` : ''}${t.error ? ` (${t.error})` : ''}`,
+    );
   }
   for (const e of report.errors) out.push(`  error [${e.phase}${e.tool ? ` ${e.tool}` : ''}] ${e.code}: ${e.message}`);
   if (golden) {
-    out.push(golden.equal ? '  golden: match' : `  golden: ${golden.diffs.length} difference(s)${golden.planChanged ? ' (the plan changed since the golden was recorded)' : ''}`);
+    out.push(
+      golden.equal
+        ? '  golden: match'
+        : `  golden: ${golden.diffs.length} difference(s)${golden.planChanged ? ' (the plan changed since the golden was recorded)' : ''}`,
+    );
     for (const d of golden.diffs.slice(0, 20)) out.push(`    ${d}`);
   }
   out.push(`  artifacts: ${outDir}`);
@@ -330,7 +352,7 @@ main(process.argv.slice(2)).then(
     process.exitCode = code;
   },
   (err) => {
-    process.stderr.write(`php-debug-plan: ${err instanceof Error ? err.stack ?? err.message : String(err)}\n`);
+    process.stderr.write(`php-debug-plan: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}\n`);
     process.exitCode = EXIT.failed;
   },
 );

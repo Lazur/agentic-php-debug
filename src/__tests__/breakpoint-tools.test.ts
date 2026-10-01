@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { handleDebugSetBreakpoints } from '../tools/debug-set-breakpoints.js';
 import { handleDebugSetFunctionBreakpoints } from '../tools/debug-set-function-breakpoints.js';
 import { handleDebugSetExceptionBreakpoints } from '../tools/debug-set-exception-breakpoints.js';
-import { SessionManager, SessionState, type NotificationSender } from '../session.js';
+import { SessionManager, type NotificationSender } from '../session.js';
 import type { DAPClient } from '../dap-client.js';
 import type { Config } from '../config.js';
 import { PathMapper, type PathMapping } from '../path-mapper.js';
@@ -59,7 +59,6 @@ function createMockDAPClient() {
   return { client: client as unknown as DAPClient, mockClient: client, fireEvent };
 }
 
-
 // --- debug_set_breakpoints tests (Requirements 6.1, 6.2, 6.5, 6.6) ---
 
 describe('handleDebugSetBreakpoints', () => {
@@ -84,9 +83,7 @@ describe('handleDebugSetBreakpoints', () => {
 
     expect(result.success).toBe(true);
     // Verify path was mapped to remote
-    const callArgs = mockClient.sendRequest.mock.calls.find(
-      (c) => c[0] === 'setBreakpoints',
-    );
+    const callArgs = mockClient.sendRequest.mock.calls.find((c) => c[0] === 'setBreakpoints');
     expect(callArgs).toBeDefined();
     expect(callArgs![1]).toEqual({
       source: { path: '/remote/app/index.php' },
@@ -146,16 +143,12 @@ describe('handleDebugSetBreakpoints', () => {
     expect(data.queued).toBe(false);
     // Breakpoints must reach the adapter BEFORE Xdebug connects — deferring
     // until the 'thread' event races the request being debugged.
-    const bpCalls = mockClient.sendRequest.mock.calls.filter(
-      (c) => c[0] === 'setBreakpoints',
-    );
+    const bpCalls = mockClient.sendRequest.mock.calls.filter((c) => c[0] === 'setBreakpoints');
     expect(bpCalls).toHaveLength(1);
-    expect(data.nextAction).toBe(
-      'Trigger PHP execution, then call debug_wait to wait for a breakpoint hit.',
-    );
+    expect(data.nextAction).toBe('Trigger PHP execution, then call debug_wait to wait for a breakpoint hit.');
   });
 
-  it('does not pass the adapter\'s raw verified boolean through', async () => {
+  it("does not pass the adapter's raw verified boolean through", async () => {
     const { client, mockClient, fireEvent } = createMockDAPClient();
     const mapper = new PathMapper([]);
     const session = new SessionManager(stubConfig(), client, mapper, stubNotifier());
@@ -227,9 +220,7 @@ describe('handleDebugSetFunctionBreakpoints', () => {
     });
 
     expect(result.success).toBe(true);
-    const callArgs = mockClient.sendRequest.mock.calls.find(
-      (c) => c[0] === 'setFunctionBreakpoints',
-    );
+    const callArgs = mockClient.sendRequest.mock.calls.find((c) => c[0] === 'setFunctionBreakpoints');
     expect(callArgs![1]).toEqual({
       breakpoints: [{ name: 'myFunction' }],
     });
@@ -249,9 +240,7 @@ describe('handleDebugSetFunctionBreakpoints', () => {
 
     expect(result.success).toBe(true);
     expect((result.data as any).queued).toBe(false);
-    const bpCalls = mockClient.sendRequest.mock.calls.filter(
-      (c) => c[0] === 'setFunctionBreakpoints',
-    );
+    const bpCalls = mockClient.sendRequest.mock.calls.filter((c) => c[0] === 'setFunctionBreakpoints');
     expect(bpCalls).toHaveLength(1);
   });
 });
@@ -275,9 +264,7 @@ describe('handleDebugSetExceptionBreakpoints', () => {
     });
 
     expect(result.success).toBe(true);
-    const callArgs = mockClient.sendRequest.mock.calls.find(
-      (c) => c[0] === 'setExceptionBreakpoints',
-    );
+    const callArgs = mockClient.sendRequest.mock.calls.find((c) => c[0] === 'setExceptionBreakpoints');
     expect(callArgs![1]).toEqual({
       filters: ['Notice', 'Warning', 'Exception'],
     });
@@ -297,9 +284,7 @@ describe('handleDebugSetExceptionBreakpoints', () => {
 
     expect(result.success).toBe(true);
     expect((result.data as any).queued).toBe(false);
-    const bpCalls = mockClient.sendRequest.mock.calls.filter(
-      (c) => c[0] === 'setExceptionBreakpoints',
-    );
+    const bpCalls = mockClient.sendRequest.mock.calls.filter((c) => c[0] === 'setExceptionBreakpoints');
     expect(bpCalls).toHaveLength(1);
   });
 });

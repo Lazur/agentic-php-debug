@@ -4,26 +4,35 @@ import { bundledAdapterPath } from './adapter-path.js';
 
 // Sub-schemas for nested config objects
 
-const XdebugSettingsSchema = z.object({
-  max_children: z.number().int().optional(),
-  max_data: z.number().int().optional(),
-  max_depth: z.number().int().optional(),
-  show_hidden: z.union([z.literal(0), z.literal(1)]).optional(),
-  breakpoint_include_return_value: z.union([z.literal(0), z.literal(1)]).optional(),
-}).strict().optional();
+const XdebugSettingsSchema = z
+  .object({
+    max_children: z.number().int().optional(),
+    max_data: z.number().int().optional(),
+    max_depth: z.number().int().optional(),
+    show_hidden: z.union([z.literal(0), z.literal(1)]).optional(),
+    breakpoint_include_return_value: z.union([z.literal(0), z.literal(1)]).optional(),
+  })
+  .strict()
+  .optional();
 
-const ProxySettingsSchema = z.object({
-  enable: z.boolean().default(false),
-  host: z.string().default('127.0.0.1'),
-  port: z.number().int().default(9001),
-  key: z.string().optional(),
-  allowMultipleSessions: z.boolean().default(true),
-  timeout: z.number().int().default(3000),
-}).strict().optional();
+const ProxySettingsSchema = z
+  .object({
+    enable: z.boolean().default(false),
+    host: z.string().default('127.0.0.1'),
+    port: z.number().int().default(9001),
+    key: z.string().optional(),
+    allowMultipleSessions: z.boolean().default(true),
+    timeout: z.number().int().default(3000),
+  })
+  .strict()
+  .optional();
 
-const StreamSettingsSchema = z.object({
-  stdout: z.union([z.literal(0), z.literal(1), z.literal(2)]).default(0),
-}).strict().optional();
+const StreamSettingsSchema = z
+  .object({
+    stdout: z.union([z.literal(0), z.literal(1), z.literal(2)]).default(0),
+  })
+  .strict()
+  .optional();
 
 export const ConfigSchema = z.object({
   // Lazy default: evaluated only when a config omits adapterPath.
@@ -63,7 +72,7 @@ export function loadConfig(filePath: string): Config {
     raw = readFileSync(filePath, 'utf-8');
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    throw new Error(`Failed to read config file "${filePath}": ${message}`);
+    throw new Error(`Failed to read config file "${filePath}": ${message}`, { cause: err });
   }
 
   let json: unknown;

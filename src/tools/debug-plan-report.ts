@@ -3,11 +3,26 @@ import { normalizeReport, summarizeReport } from '../plan/report.js';
 import type { RunStore } from '../plan/store.js';
 import { successResult, errorResult, ErrorCodes, type ToolResult } from './types.js';
 
-const SECTIONS = ['summary', 'stops', 'breakpoints', 'trigger', 'expectations', 'output', 'errors', 'journal', 'normalized'] as const;
+const SECTIONS = [
+  'summary',
+  'stops',
+  'breakpoints',
+  'trigger',
+  'expectations',
+  'output',
+  'errors',
+  'journal',
+  'normalized',
+] as const;
 
 export const debugPlanReportSchema = z.object({
   runId: z.string().optional().describe('Run to read (default: the most recent run)'),
-  stop: z.number().int().min(1).optional().describe('One stop, by its seq number, in full: frames, values, locals, exception'),
+  stop: z
+    .number()
+    .int()
+    .min(1)
+    .optional()
+    .describe('One stop, by its seq number, in full: frames, values, locals, exception'),
   probe: z.string().optional().describe('Every stop of one probe, in full'),
   section: z.enum(SECTIONS).optional().describe('Part of the report to return (default "summary")'),
   offset: z.number().int().min(0).optional().describe('First item to return from stops/journal (default 0)'),
@@ -44,7 +59,10 @@ export function handleDebugPlanReport(args: DebugPlanReportInput, ctx: { store: 
   if (args.stop !== undefined) {
     const stop = report.stops.find((s) => s.seq === args.stop);
     if (!stop) {
-      return errorResult(`Run ${report.runId} has no stop #${args.stop} (it has ${report.stops.length}).`, ErrorCodes.INVALID_PARAMS);
+      return errorResult(
+        `Run ${report.runId} has no stop #${args.stop} (it has ${report.stops.length}).`,
+        ErrorCodes.INVALID_PARAMS,
+      );
     }
     return successResult({ runId: report.runId, stop });
   }
@@ -55,7 +73,11 @@ export function handleDebugPlanReport(args: DebugPlanReportInput, ctx: { store: 
         ErrorCodes.INVALID_PARAMS,
       );
     }
-    return successResult({ runId: report.runId, probe: args.probe, ...page(report.stops.filter((s) => s.probe === args.probe)) });
+    return successResult({
+      runId: report.runId,
+      probe: args.probe,
+      ...page(report.stops.filter((s) => s.probe === args.probe)),
+    });
   }
 
   switch (args.section ?? 'summary') {

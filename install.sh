@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # PHP Debug MCP — installer.
 #
-#   curl -fsSL https://raw.githubusercontent.com/Lazur/php-debug-mcp/main/install.sh | bash
-#   curl -fsSL https://raw.githubusercontent.com/Lazur/php-debug-mcp/main/install.sh | bash -s -- --project ~/code/my-app
+#   curl -fsSL https://raw.githubusercontent.com/Lazur/agentic-php-debug/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/Lazur/agentic-php-debug/main/install.sh | bash -s -- --project ~/code/my-app
 #   ./install.sh --help                  # from a checkout: installs that checkout in place
 #
 # Re-running is safe and is also how you update. Nothing outside the install
@@ -13,7 +13,7 @@
 
 set -euo pipefail
 
-CORE_REPO="${PHP_DEBUG_MCP_REPO:-https://github.com/Lazur/php-debug-mcp.git}"
+CORE_REPO="${PHP_DEBUG_MCP_REPO:-https://github.com/Lazur/agentic-php-debug.git}"
 EXT_REPO="${PHP_DEBUG_MCP_EXT_REPO:-https://github.com/Lazur/vscode-agentic-debug.git}"
 MIN_NODE=20
 EXT_ID="php-agentic-debug.vscode-agentic-debug"
@@ -141,7 +141,7 @@ detect_source() {
   local self="${BASH_SOURCE[0]:-}"
   [ -n "$self" ] && [ -f "$self" ] || return 0
   local dir; dir="$(cd "$(dirname "$self")" && pwd -P)"
-  if [ -f "$dir/package.json" ] && grep -q '"name": "ts-php-debug-mcp"' "$dir/package.json"; then
+  if [ -f "$dir/package.json" ] && grep -q '"name": "agentic-php-debug"' "$dir/package.json"; then
     SOURCE="$dir"
   fi
 }
@@ -217,9 +217,9 @@ install_core() {
     CORE_DIR="$SOURCE"
     ok "using checkout $CORE_DIR"
   else
-    # The directory must be named ts-php-debug-mcp: the VS Code extension depends
-    # on it as "file:../ts-php-debug-mcp".
-    CORE_DIR="$INSTALL_DIR/ts-php-debug-mcp"
+    # The directory must be named agentic-php-debug: the VS Code extension depends
+    # on it as "file:../agentic-php-debug".
+    CORE_DIR="$INSTALL_DIR/agentic-php-debug"
     fetch_repo "$CORE_REPO" "$CORE_DIR"
   fi
 
@@ -436,8 +436,8 @@ install_vscode() {
     ok "using checkout $ext_dir"
   else
     ext_dir="$(dirname "$CORE_DIR")/vscode-agentic-debug"
-    [ "$(basename "$CORE_DIR")" = ts-php-debug-mcp ] \
-      || die "the extension needs the core checked out as a sibling named ts-php-debug-mcp (found $CORE_DIR)"
+    [ "$(basename "$CORE_DIR")" = agentic-php-debug ] \
+      || die "the extension needs the core checked out as a sibling named agentic-php-debug (found $CORE_DIR)"
     fetch_repo "$EXT_REPO" "$ext_dir"
   fi
 
@@ -556,7 +556,7 @@ EOF
 uninstall() {
   step "Uninstalling from $INSTALL_DIR"
   case "$INSTALL_DIR" in /|"$HOME"|"$HOME"/) die "refusing to remove $INSTALL_DIR" ;; esac
-  if [ -d "$INSTALL_DIR" ] && [ ! -e "$INSTALL_DIR/bin/php-debug-mcp" ] && [ ! -d "$INSTALL_DIR/ts-php-debug-mcp" ]; then
+  if [ -d "$INSTALL_DIR" ] && [ ! -e "$INSTALL_DIR/bin/php-debug-mcp" ] && [ ! -d "$INSTALL_DIR/agentic-php-debug" ] && [ ! -d "$INSTALL_DIR/ts-php-debug-mcp" ]; then
     die "$INSTALL_DIR does not look like a php-debug-mcp install — not removing it"
   fi
   if [ "$YES" != 1 ]; then
@@ -583,7 +583,7 @@ uninstall() {
   for link in "$HOME/.claude/skills/php-debug-modes" "${PROJECT:+$PROJECT/.claude/skills/php-debug-modes}" \
               "$HOME/.local/bin/php-debug-mcp" "$HOME/.local/bin/php-debug-plan"; do
     [ -n "$link" ] && [ -L "$link" ] || continue
-    case "$(readlink "$link")" in "$INSTALL_DIR"/*|*/ts-php-debug-mcp/*) rm -f "$link"; ok "removed $link" ;; esac
+    case "$(readlink "$link")" in "$INSTALL_DIR"/*|*/agentic-php-debug/*|*/ts-php-debug-mcp/*) rm -f "$link"; ok "removed $link" ;; esac
   done
   if has code && code --list-extensions 2>/dev/null | grep -qi "^$EXT_ID\$"; then
     code --uninstall-extension "$EXT_ID" >/dev/null && ok "removed VS Code extension"

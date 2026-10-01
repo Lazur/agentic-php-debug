@@ -120,8 +120,10 @@ for (const entry of collectSchemaEntries(allSchemas as unknown as Record<string,
 
 // Tools with no input schema still have prose that can rot.
 for (const [toolName, descExport] of Object.entries(toolNameToDescriptionExport)) {
-  if (byName.has(toolName) && !collectSchemaEntries(allSchemas as unknown as Record<string, unknown>)
-    .some((e) => e.toolName === toolName)) {
+  if (
+    byName.has(toolName) &&
+    !collectSchemaEntries(allSchemas as unknown as Record<string, unknown>).some((e) => e.toolName === toolName)
+  ) {
     const tool = byName.get(toolName)!;
     const expected = descriptions[descExport];
     if (expected !== undefined && tool.modelDescription !== expected) {
@@ -136,8 +138,7 @@ for (const [toolName, descExport] of Object.entries(toolNameToDescriptionExport)
 // Anything in the manifest we do not know about is either a new core tool that
 // was never mapped, or an extension-only tool that must be declared as such.
 for (const tool of tools) {
-  const known =
-    toolNameToDescriptionExport[tool.name] !== undefined || extensionOnlyTools.has(tool.name);
+  const known = toolNameToDescriptionExport[tool.name] !== undefined || extensionOnlyTools.has(tool.name);
   if (!known) {
     hasDrift = true;
     console.error(`❌ ${tool.name}: in the manifest but not in tool-map.ts — map it or declare it extension-only`);

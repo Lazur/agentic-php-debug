@@ -73,7 +73,10 @@ describe('output capture', () => {
       session.clearPendingEvents();
 
       let settled = false;
-      const waiting = handleDebugWait(session, { timeout: 5000 }).then((r) => { settled = true; return r; });
+      const waiting = handleDebugWait(session, { timeout: 5000 }).then((r) => {
+        settled = true;
+        return r;
+      });
 
       mock.fireEvent('output', { category: 'stdout', output: 'chatter' });
       await Promise.resolve();

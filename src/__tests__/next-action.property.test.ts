@@ -8,17 +8,13 @@ import { handleDebugContinue } from '../tools/debug-continue.js';
 import { handleDebugNext } from '../tools/debug-next.js';
 import { handleDebugStepIn } from '../tools/debug-step-in.js';
 import { handleDebugStepOut } from '../tools/debug-step-out.js';
-import { handleDebugLaunch } from '../tools/debug-launch.js';
-import { handleDebugPause } from '../tools/debug-pause.js';
 import { handleDebugStackTrace } from '../tools/debug-stack-trace.js';
 import { handleDebugScopes } from '../tools/debug-scopes.js';
 import { handleDebugVariables } from '../tools/debug-variables.js';
 import { handleDebugEvaluate } from '../tools/debug-evaluate.js';
 import { handleDebugSetBreakpoints } from '../tools/debug-set-breakpoints.js';
 import { handleDebugThreads } from '../tools/debug-threads.js';
-import { handleDebugTerminate } from '../tools/debug-terminate.js';
-import { handleDebugWait } from '../tools/debug-wait.js';
-import { SessionManager, SessionState, type NotificationSender } from '../session.js';
+import { SessionManager, type NotificationSender } from '../session.js';
 import type { DebugProtocol } from '@vscode/debugprotocol';
 import type { Config } from '../config.js';
 import type { PathMapper } from '../path-mapper.js';
@@ -113,65 +109,63 @@ describe('Property 5: nextAction structural validity', () => {
    */
   it('all successful tool results contain a non-empty nextAction string', async () => {
     await fc.assert(
-      fc.asyncProperty(
-        fc.integer({ min: 1, max: 100 }),
-        async (threadId) => {
-          const { client, fireEvent } = createMockBackend();
+      fc.asyncProperty(fc.integer({ min: 1, max: 100 }), async (threadId) => {
+        const { client, fireEvent } = createMockBackend();
 
-          // Configure sendRequest to return appropriate bodies for each tool
-          client.sendRequest.mockImplementation(async (cmd: string) => {
-            if (cmd === 'stackTrace') return { body: { stackFrames: [{ id: 1, name: 'main', line: 1, column: 1 }], totalFrames: 1 } };
-            if (cmd === 'scopes') return { body: { scopes: [] } };
-            if (cmd === 'variables') return { body: { variables: [] } };
-            if (cmd === 'evaluate') return { body: { result: 'test', type: 'string', variablesReference: 0 } };
-            if (cmd === 'threads') return { body: { threads: [{ id: threadId, name: 'Thread' }] } };
-            if (cmd === 'setBreakpoints') return { body: { breakpoints: [] } };
-            return { body: {} };
-          });
+        // Configure sendRequest to return appropriate bodies for each tool
+        client.sendRequest.mockImplementation(async (cmd: string) => {
+          if (cmd === 'stackTrace')
+            return { body: { stackFrames: [{ id: 1, name: 'main', line: 1, column: 1 }], totalFrames: 1 } };
+          if (cmd === 'scopes') return { body: { scopes: [] } };
+          if (cmd === 'variables') return { body: { variables: [] } };
+          if (cmd === 'evaluate') return { body: { result: 'test', type: 'string', variablesReference: 0 } };
+          if (cmd === 'threads') return { body: { threads: [{ id: threadId, name: 'Thread' }] } };
+          if (cmd === 'setBreakpoints') return { body: { breakpoints: [] } };
+          return { body: {} };
+        });
 
-          // Test stepping handlers (require Paused state)
-          const pausedSession = await launchAndPause(client, fireEvent);
+        // Test stepping handlers (require Paused state)
+        const pausedSession = await launchAndPause(client, fireEvent);
 
-          // Sequential, re-pausing between each: a continuation now leaves the
-          // session running, so firing all four at once only worked because
-          // assertState happens before the first await. That modelled nothing
-          // an agent can actually do.
-          const steppingResults = [];
-          for (const handler of [handleDebugContinue, handleDebugNext, handleDebugStepIn, handleDebugStepOut]) {
-            steppingResults.push(await handler(pausedSession, { threadId }));
-            fireEvent('stopped', { reason: 'step', threadId, allThreadsStopped: true });
-          }
+        // Sequential, re-pausing between each: a continuation now leaves the
+        // session running, so firing all four at once only worked because
+        // assertState happens before the first await. That modelled nothing
+        // an agent can actually do.
+        const steppingResults = [];
+        for (const handler of [handleDebugContinue, handleDebugNext, handleDebugStepIn, handleDebugStepOut]) {
+          steppingResults.push(await handler(pausedSession, { threadId }));
+          fireEvent('stopped', { reason: 'step', threadId, allThreadsStopped: true });
+        }
 
-          const inspectionResults = await Promise.all([
-            handleDebugStackTrace(pausedSession, { threadId }),
-            handleDebugScopes(pausedSession, { frameId: 0 }),
-            handleDebugVariables(pausedSession, { variablesReference: 1 }),
-            handleDebugEvaluate(pausedSession, { expression: '$x' }),
-            handleDebugThreads(pausedSession),
-            handleDebugSetBreakpoints(pausedSession, { path: '/test.php', breakpoints: [] }),
-          ]);
+        const inspectionResults = await Promise.all([
+          handleDebugStackTrace(pausedSession, { threadId }),
+          handleDebugScopes(pausedSession, { frameId: 0 }),
+          handleDebugVariables(pausedSession, { variablesReference: 1 }),
+          handleDebugEvaluate(pausedSession, { expression: '$x' }),
+          handleDebugThreads(pausedSession),
+          handleDebugSetBreakpoints(pausedSession, { path: '/test.php', breakpoints: [] }),
+        ]);
 
-          // Breakpoint writes made while connected take a different branch with
-          // its own nextAction; without this the single-sentence rule went
-          // unenforced there.
-          const connectedSession = await launchAndConnect(client, fireEvent);
-          const connectedResults = await Promise.all([
-            handleDebugSetBreakpoints(connectedSession, { path: '/test.php', breakpoints: [] }),
-          ]);
+        // Breakpoint writes made while connected take a different branch with
+        // its own nextAction; without this the single-sentence rule went
+        // unenforced there.
+        const connectedSession = await launchAndConnect(client, fireEvent);
+        const connectedResults = await Promise.all([
+          handleDebugSetBreakpoints(connectedSession, { path: '/test.php', breakpoints: [] }),
+        ]);
 
-          const allResults = [...steppingResults, ...inspectionResults, ...connectedResults];
+        const allResults = [...steppingResults, ...inspectionResults, ...connectedResults];
 
-          for (const result of allResults) {
-            expect(result.success).toBe(true);
-            const data = result.data as any;
-            expect(data.nextAction).toBeDefined();
-            expect(typeof data.nextAction).toBe('string');
-            expect(data.nextAction.length).toBeGreaterThan(0);
-            // At most one sentence: no period followed by whitespace and capital letter
-            expect(data.nextAction).not.toMatch(/\.\s+[A-Z]/);
-          }
-        },
-      ),
+        for (const result of allResults) {
+          expect(result.success).toBe(true);
+          const data = result.data as any;
+          expect(data.nextAction).toBeDefined();
+          expect(typeof data.nextAction).toBe('string');
+          expect(data.nextAction.length).toBeGreaterThan(0);
+          // At most one sentence: no period followed by whitespace and capital letter
+          expect(data.nextAction).not.toMatch(/\.\s+[A-Z]/);
+        }
+      }),
       { numRuns: 100 },
     );
   }, 30000);
@@ -187,26 +181,23 @@ describe('Property 6: Stepping handlers recommend debug_wait', () => {
    */
   it('stepping handler nextAction always contains debug_wait', async () => {
     await fc.assert(
-      fc.asyncProperty(
-        fc.integer({ min: 1, max: 1000 }),
-        async (threadId) => {
-          const { client, fireEvent } = createMockBackend();
-          const session = await launchAndPause(client, fireEvent);
+      fc.asyncProperty(fc.integer({ min: 1, max: 1000 }), async (threadId) => {
+        const { client, fireEvent } = createMockBackend();
+        const session = await launchAndPause(client, fireEvent);
 
-          // Sequential with a re-pause between each — see the note in Property 5.
-          const results = [];
-          for (const handler of [handleDebugContinue, handleDebugNext, handleDebugStepIn, handleDebugStepOut]) {
-            results.push(await handler(session, { threadId }));
-            fireEvent('stopped', { reason: 'step', threadId, allThreadsStopped: true });
-          }
+        // Sequential with a re-pause between each — see the note in Property 5.
+        const results = [];
+        for (const handler of [handleDebugContinue, handleDebugNext, handleDebugStepIn, handleDebugStepOut]) {
+          results.push(await handler(session, { threadId }));
+          fireEvent('stopped', { reason: 'step', threadId, allThreadsStopped: true });
+        }
 
-          for (const result of results) {
-            expect(result.success).toBe(true);
-            const data = result.data as any;
-            expect(data.nextAction).toContain('debug_wait');
-          }
-        },
-      ),
+        for (const result of results) {
+          expect(result.success).toBe(true);
+          const data = result.data as any;
+          expect(data.nextAction).toContain('debug_wait');
+        }
+      }),
       { numRuns: 100 },
     );
   }, 30000);

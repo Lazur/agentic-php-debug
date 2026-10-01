@@ -26,11 +26,11 @@ const URL = process.env.SMOKE_URL ?? 'https://drupal-logger-ai.ddev.site/';
 
 const VERBOSE = process.env.SMOKE_VERBOSE ?? '0';
 const child = spawn('node', [SERVER, '--config', CONFIG, '--verbose', VERBOSE], { stdio: ['pipe', 'pipe', 'pipe'] });
-child.stderr.on('data', d => process.stderr.write('[server stderr] ' + d));
+child.stderr.on('data', (d) => process.stderr.write('[server stderr] ' + d));
 
 let buf = '';
 const pending = new Map();
-child.stdout.on('data', chunk => {
+child.stdout.on('data', (chunk) => {
   buf += chunk.toString();
   let i;
   while ((i = buf.indexOf('\n')) >= 0) {
@@ -38,7 +38,11 @@ child.stdout.on('data', chunk => {
     buf = buf.slice(i + 1);
     if (!line) continue;
     let msg;
-    try { msg = JSON.parse(line); } catch { continue; }
+    try {
+      msg = JSON.parse(line);
+    } catch {
+      continue;
+    }
     if (msg.method && VERBOSE !== '0') {
       console.log('  [notif]', JSON.stringify(msg.params?.data ?? msg.params).slice(0, 400));
     }
@@ -54,7 +58,10 @@ function rpc(method, params, timeout = 60000) {
   const id = nextId++;
   return new Promise((resolve, reject) => {
     const t = setTimeout(() => reject(new Error(`timeout: ${method}`)), timeout);
-    pending.set(id, m => { clearTimeout(t); resolve(m); });
+    pending.set(id, (m) => {
+      clearTimeout(t);
+      resolve(m);
+    });
     child.stdin.write(JSON.stringify({ jsonrpc: '2.0', id, method, params }) + '\n');
   });
 }
@@ -71,7 +78,11 @@ async function call(name, args) {
 async function callOk(name, args) {
   const text = await call(name, args);
   let parsed;
-  try { parsed = JSON.parse(text); } catch { throw new Error(`${name}: unparseable result ${text}`); }
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new Error(`${name}: unparseable result ${text}`);
+  }
   if (parsed.success !== true) throw new Error(`${name} failed: ${text}`);
   return text;
 }
@@ -80,17 +91,21 @@ const step = (n, s) => console.log(`\n=== ${n} ${s} ===`);
 
 try {
   step(1, 'initialize');
-  const init = await rpc('initialize', {
-    protocolVersion: '2025-06-18',
-    capabilities: {},
-    clientInfo: { name: 'smoke', version: '0' },
-  }, 15000);
+  const init = await rpc(
+    'initialize',
+    {
+      protocolVersion: '2025-06-18',
+      capabilities: {},
+      clientInfo: { name: 'smoke', version: '0' },
+    },
+    15000,
+  );
   console.log('serverInfo:', JSON.stringify(init.result.serverInfo));
   notify('notifications/initialized', {});
 
   step(2, 'tools/list');
   const tools = await rpc('tools/list', {}, 15000);
-  const names = tools.result.tools.map(t => t.name);
+  const names = tools.result.tools.map((t) => t.name);
   console.log(`${names.length} tools:`, names.join(', '));
 
   step(3, 'debug_launch');

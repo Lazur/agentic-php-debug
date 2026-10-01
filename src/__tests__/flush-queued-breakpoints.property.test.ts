@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
 import { SessionManager, SessionState, type NotificationSender } from '../session.js';
 import type { DAPClient } from '../dap-client.js';
@@ -44,17 +44,29 @@ function createMockDAPClient() {
       eventHandlers.set(name, list);
     },
     onAnyEvent() {},
-    async initialize() { return {} as any; },
-    async launch() { return {} as any; },
-    async configurationDone() { return {} as any; },
+    async initialize() {
+      return {} as any;
+    },
+    async launch() {
+      return {} as any;
+    },
+    async configurationDone() {
+      return {} as any;
+    },
     async sendRequest(command: string, args?: object) {
       sendRequestCalls.push({ command, args });
       return {} as any;
     },
     async disconnect() {},
-    waitForEvent() { return Promise.resolve({} as DebugProtocol.Event); },
-    isAlive() { return true; },
-    getStatus() { return { alive: true, pid: 1234 }; },
+    waitForEvent() {
+      return Promise.resolve({} as DebugProtocol.Event);
+    },
+    isAlive() {
+      return true;
+    },
+    getStatus() {
+      return { alive: true, pid: 1234 };
+    },
   } as unknown as DAPClient;
 
   function fireEvent(name: string, body: Record<string, unknown> = {}) {
@@ -72,10 +84,7 @@ const queuedBreakpointArb = fc.record({
   command: fc.constant('setBreakpoints'),
   args: fc.record({
     source: fc.record({ path: fc.stringMatching(/^\/[a-z]{1,10}\/[a-z]{1,10}\.php$/) }),
-    breakpoints: fc.array(
-      fc.record({ line: fc.integer({ min: 1, max: 500 }) }),
-      { minLength: 1, maxLength: 5 },
-    ),
+    breakpoints: fc.array(fc.record({ line: fc.integer({ min: 1, max: 500 }) }), { minLength: 1, maxLength: 5 }),
   }),
 });
 
@@ -98,12 +107,7 @@ describe('Feature: fix-queued-breakpoints-flush, Bug Regression: queued breakpoi
     await fc.assert(
       fc.asyncProperty(queuedBreakpointsArb, async (breakpoints) => {
         const { client, fireEvent, sendRequestCalls } = createMockDAPClient();
-        const session = new SessionManager(
-          stubConfig(),
-          client,
-          stubPathMapper(),
-          stubNotifier(),
-        );
+        const session = new SessionManager(stubConfig(), client, stubPathMapper(), stubNotifier());
 
         // Launch to reach Listening state
         await session.launch();
@@ -152,12 +156,7 @@ describe('Feature: fix-queued-breakpoints-flush, Property 1: Flush sends all que
     await fc.assert(
       fc.asyncProperty(queuedBreakpointsArbP1, async (breakpoints) => {
         const { client, fireEvent, sendRequestCalls } = createMockDAPClient();
-        const session = new SessionManager(
-          stubConfig(),
-          client,
-          stubPathMapper(),
-          stubNotifier(),
-        );
+        const session = new SessionManager(stubConfig(), client, stubPathMapper(), stubNotifier());
 
         // Launch to reach Listening state
         await session.launch();
@@ -199,7 +198,6 @@ describe('Feature: fix-queued-breakpoints-flush, Property 1: Flush sends all que
   }, 30000);
 });
 
-
 // --- Property 2: Flush error resilience ---
 
 /**
@@ -218,9 +216,15 @@ function createFailingMockDAPClient(failureIndices: Set<number>) {
       eventHandlers.set(name, list);
     },
     onAnyEvent() {},
-    async initialize() { return {} as any; },
-    async launch() { return {} as any; },
-    async configurationDone() { return {} as any; },
+    async initialize() {
+      return {} as any;
+    },
+    async launch() {
+      return {} as any;
+    },
+    async configurationDone() {
+      return {} as any;
+    },
     async sendRequest(command: string, args?: object) {
       const idx = callIndex++;
       attemptedCalls.push({ command, args });
@@ -230,9 +234,15 @@ function createFailingMockDAPClient(failureIndices: Set<number>) {
       return {} as any;
     },
     async disconnect() {},
-    waitForEvent() { return Promise.resolve({} as DebugProtocol.Event); },
-    isAlive() { return true; },
-    getStatus() { return { alive: true, pid: 1234 }; },
+    waitForEvent() {
+      return Promise.resolve({} as DebugProtocol.Event);
+    },
+    isAlive() {
+      return true;
+    },
+    getStatus() {
+      return { alive: true, pid: 1234 };
+    },
   } as unknown as DAPClient;
 
   function fireEvent(name: string, body: Record<string, unknown> = {}) {
@@ -249,11 +259,7 @@ function createFailingMockDAPClient(failureIndices: Set<number>) {
  * subset of indices that should fail during flush.
  */
 const breakpointsWithFailuresArb = queuedBreakpointArb
-  .chain((bp) =>
-    fc.tuple(
-      fc.array(fc.constant(bp), { minLength: 1, maxLength: 20 }),
-    ).map(([bps]) => bps),
-  )
+  .chain((bp) => fc.tuple(fc.array(fc.constant(bp), { minLength: 1, maxLength: 20 })).map(([bps]) => bps))
   // Generate a list of breakpoints, then pick random failure indices
   .chain((bps) =>
     fc.tuple(
@@ -293,12 +299,7 @@ describe('Feature: fix-queued-breakpoints-flush, Property 2: Flush error resilie
         const failureSet = new Set(failureIndices);
         const { client, fireEvent, attemptedCalls } = createFailingMockDAPClient(failureSet);
 
-        const session = new SessionManager(
-          stubConfig(),
-          client,
-          stubPathMapper(),
-          notifier,
-        );
+        const session = new SessionManager(stubConfig(), client, stubPathMapper(), notifier);
 
         await session.launch();
         expect(session.state).toBe(SessionState.Listening);
@@ -347,7 +348,6 @@ describe('Feature: fix-queued-breakpoints-flush, Property 2: Flush error resilie
   }, 30000);
 });
 
-
 // --- Property 3: nextAction text matches session state ---
 
 import { handleDebugSetBreakpoints } from '../tools/debug-set-breakpoints.js';
@@ -357,17 +357,10 @@ import { handleDebugSetBreakpoints } from '../tools/debug-set-breakpoints.js';
  */
 const breakpointInputArb = fc.record({
   path: fc.stringMatching(/^\/[a-z]{1,10}\/[a-z]{1,10}\.php$/),
-  breakpoints: fc.array(
-    fc.record({ line: fc.integer({ min: 1, max: 500 }) }),
-    { minLength: 1, maxLength: 5 },
-  ),
+  breakpoints: fc.array(fc.record({ line: fc.integer({ min: 1, max: 500 }) }), { minLength: 1, maxLength: 5 }),
 });
 
-const sessionStateArb = fc.constantFrom(
-  SessionState.Listening,
-  SessionState.Connected,
-  SessionState.Paused,
-);
+const sessionStateArb = fc.constantFrom(SessionState.Listening, SessionState.Connected, SessionState.Paused);
 
 describe('Feature: fix-queued-breakpoints-flush, Property 3: nextAction text matches session state', () => {
   /**
@@ -382,12 +375,7 @@ describe('Feature: fix-queued-breakpoints-flush, Property 3: nextAction text mat
     await fc.assert(
       fc.asyncProperty(breakpointInputArb, sessionStateArb, async (input, targetState) => {
         const { client, fireEvent, sendRequestCalls } = createMockDAPClient();
-        const session = new SessionManager(
-          stubConfig(),
-          client,
-          stubPathMapper(),
-          stubNotifier(),
-        );
+        const session = new SessionManager(stubConfig(), client, stubPathMapper(), stubNotifier());
 
         // Launch to reach Listening state
         await session.launch();
@@ -420,9 +408,7 @@ describe('Feature: fix-queued-breakpoints-flush, Property 3: nextAction text mat
           // No connection yet, so the adapter stores these and replays them
           // onto the connection when it arrives — they will apply.
           expect(data.applied).toBe(true);
-          expect(data.nextAction).toBe(
-            'Trigger PHP execution, then call debug_wait to wait for a breakpoint hit.',
-          );
+          expect(data.nextAction).toBe('Trigger PHP execution, then call debug_wait to wait for a breakpoint hit.');
         } else if (targetState === SessionState.Connected) {
           // PHP is running: the adapter stages the write and skips the network
           // send, so it has NOT reached Xdebug and the caller must be told.
@@ -431,16 +417,13 @@ describe('Feature: fix-queued-breakpoints-flush, Property 3: nextAction text mat
           expect(data.warning).toContain('NOT applied');
         } else {
           expect(data.applied).toBe(true);
-          expect(data.nextAction).toBe(
-            'Call debug_continue or trigger PHP execution to hit breakpoints.',
-          );
+          expect(data.nextAction).toBe('Call debug_continue or trigger PHP execution to hit breakpoints.');
         }
       }),
       { numRuns: 100 },
     );
   }, 30000);
 });
-
 
 // --- Property 4: queuedBreakpointCount reflects queue length ---
 
@@ -458,12 +441,7 @@ describe('Feature: fix-queued-breakpoints-flush, Property 4: queuedBreakpointCou
     await fc.assert(
       fc.asyncProperty(queueSequenceArb, async (breakpoints) => {
         const { client, fireEvent } = createMockDAPClient();
-        const session = new SessionManager(
-          stubConfig(),
-          client,
-          stubPathMapper(),
-          stubNotifier(),
-        );
+        const session = new SessionManager(stubConfig(), client, stubPathMapper(), stubNotifier());
 
         // Launch clears the queue — count should be 0
         await session.launch();

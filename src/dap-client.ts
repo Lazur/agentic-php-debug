@@ -1,5 +1,5 @@
-import { DebugProtocol } from '@vscode/debugprotocol';
-import { spawn, type ChildProcess } from 'node:child_process';
+import type { DebugProtocol } from '@vscode/debugprotocol';
+import { spawn } from 'node:child_process';
 import { frameMessage, DAPStreamParser } from './dap-framing.js';
 import type { DebugBackend, EventHandler } from './debug-backend.js';
 
@@ -43,12 +43,7 @@ export class DAPRequestError extends Error {
   readonly requestSeq: number;
   readonly dapMessage?: DebugProtocol.Message;
 
-  constructor(
-    command: string,
-    requestSeq: number,
-    message: string,
-    dapMessage?: DebugProtocol.Message,
-  ) {
+  constructor(command: string, requestSeq: number, message: string, dapMessage?: DebugProtocol.Message) {
     super(message);
     this.name = 'DAPRequestError';
     this.command = command;
@@ -211,9 +206,9 @@ export class DAPClient implements DebugBackend {
       this.exitCode = code;
       // Reject all pending requests
       for (const [, pending] of this.pending) {
-        pending.reject(new Error(
-          `DAP adapter exited unexpectedly (code ${code}). stderr: ${this.stderrChunks.join('')}`
-        ));
+        pending.reject(
+          new Error(`DAP adapter exited unexpectedly (code ${code}). stderr: ${this.stderrChunks.join('')}`),
+        );
       }
       this.pending.clear();
 
@@ -239,8 +234,8 @@ export class DAPClient implements DebugBackend {
     });
 
     return this.sendRequest<DebugProtocol.InitializeResponse>('initialize', {
-      clientID: 'ts-php-debug-mcp',
-      clientName: 'ts-php-debug-mcp',
+      clientID: 'agentic-php-debug',
+      clientName: 'agentic-php-debug',
       adapterID: 'php',
       pathFormat: 'path',
       linesStartAt1: true,
@@ -260,57 +255,53 @@ export class DAPClient implements DebugBackend {
   }
 
   /** Send a generic DAP request and wait for response. */
-  async sendRequest<T extends DebugProtocol.Response>(
-      command: string,
-      args?: object,
-      timeout?: number,
-    ): Promise<T> {
-      if (!this.process || !this.alive) {
-        throw new Error('DAP adapter is not running');
-      }
-
-      const seqNum = this.seq++;
-      const request: DebugProtocol.Request = {
-        seq: seqNum,
-        type: 'request',
-        command,
-        ...(args !== undefined ? { arguments: args } : {}),
-      };
-
-      this.onTrace?.('send', request);
-      const framed = frameMessage(request);
-
-      const effectiveTimeout = timeout ?? this.defaultTimeout;
-
-      return new Promise<T>((resolve, reject) => {
-        const timer = setTimeout(() => {
-          this.pending.delete(seqNum);
-          // The command is still running on the engine; remember it so a late
-          // response is reported rather than silently discarded.
-          this.abandoned.set(seqNum, command);
-          this.onRequestTimeout?.(command, effectiveTimeout);
-          reject(new DAPTimeoutError(command, effectiveTimeout));
-        }, effectiveTimeout);
-
-        this.pending.set(seqNum, {
-          resolve: (response: DebugProtocol.Response) => {
-            clearTimeout(timer);
-            resolve(response as T);
-          },
-          reject: (error: Error) => {
-            clearTimeout(timer);
-            reject(error);
-          },
-        });
-        this.process!.stdin.write(framed, (err) => {
-          if (err) {
-            clearTimeout(timer);
-            this.pending.delete(seqNum);
-            reject(new Error(`Failed to write to DAP adapter stdin: ${err.message}`));
-          }
-        });
-      });
+  async sendRequest<T extends DebugProtocol.Response>(command: string, args?: object, timeout?: number): Promise<T> {
+    if (!this.process || !this.alive) {
+      throw new Error('DAP adapter is not running');
     }
+
+    const seqNum = this.seq++;
+    const request: DebugProtocol.Request = {
+      seq: seqNum,
+      type: 'request',
+      command,
+      ...(args !== undefined ? { arguments: args } : {}),
+    };
+
+    this.onTrace?.('send', request);
+    const framed = frameMessage(request);
+
+    const effectiveTimeout = timeout ?? this.defaultTimeout;
+
+    return new Promise<T>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.pending.delete(seqNum);
+        // The command is still running on the engine; remember it so a late
+        // response is reported rather than silently discarded.
+        this.abandoned.set(seqNum, command);
+        this.onRequestTimeout?.(command, effectiveTimeout);
+        reject(new DAPTimeoutError(command, effectiveTimeout));
+      }, effectiveTimeout);
+
+      this.pending.set(seqNum, {
+        resolve: (response: DebugProtocol.Response) => {
+          clearTimeout(timer);
+          resolve(response as T);
+        },
+        reject: (error: Error) => {
+          clearTimeout(timer);
+          reject(error);
+        },
+      });
+      this.process!.stdin.write(framed, (err) => {
+        if (err) {
+          clearTimeout(timer);
+          this.pending.delete(seqNum);
+          reject(new Error(`Failed to write to DAP adapter stdin: ${err.message}`));
+        }
+      });
+    });
+  }
 
   /** Send disconnect and kill the process. */
   async disconnect(): Promise<void> {
@@ -382,9 +373,7 @@ export class DAPClient implements DebugBackend {
             response.message ??
             (dapMessage ? formatDapMessage(dapMessage) : undefined) ??
             `DAP request "${response.command}" failed`;
-          pending.reject(
-            new DAPRequestError(response.command, response.request_seq, text, dapMessage),
-          );
+          pending.reject(new DAPRequestError(response.command, response.request_seq, text, dapMessage));
         }
       } else if (this.abandoned.has(response.request_seq)) {
         // Arrived after we timed out. Nobody is waiting for it, but the fact it

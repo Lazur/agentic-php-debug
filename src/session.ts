@@ -89,9 +89,7 @@ export class SessionStateError extends Error {
   readonly actual: SessionState;
 
   constructor(allowed: SessionState[], actual: SessionState) {
-    super(
-      `Invalid session state: expected one of [${allowed.join(', ')}], but current state is "${actual}"`,
-    );
+    super(`Invalid session state: expected one of [${allowed.join(', ')}], but current state is "${actual}"`);
     this.allowed = allowed;
     this.actual = actual;
   }
@@ -449,8 +447,6 @@ export class SessionManager {
     }
   }
 
-
-
   /** Validate that the session is in an allowed state. */
   assertState(...allowed: SessionState[]): void {
     if (!allowed.includes(this._state)) {
@@ -487,10 +483,7 @@ export class SessionManager {
    * build the actual launch arguments — the injected object is left untouched, and
    * `sessionConfig` reports the merged result so callers echo what is really running.
    */
-  async launch(
-    progressToken?: string | number,
-    overrides?: Partial<Config>,
-  ): Promise<SessionStatus> {
+  async launch(progressToken?: string | number, overrides?: Partial<Config>): Promise<SessionStatus> {
     // Strip undefined here rather than at the call site: a bare spread would
     // overwrite a real value with undefined for any key the caller left unset.
     const applied = Object.fromEntries(
@@ -679,18 +672,22 @@ export class SessionManager {
     if ('onRequestTimeout' in this.dapClient) {
       this.dapClient.onRequestTimeout = (command, timeoutMs) => {
         this.noteRequestTimeout(command, timeoutMs);
-        this.notifier.sendLog(
-          'warning',
-          `DAP request "${command}" timed out after ${timeoutMs}ms; the target may still be executing it`,
-        ).catch(() => {});
+        this.notifier
+          .sendLog(
+            'warning',
+            `DAP request "${command}" timed out after ${timeoutMs}ms; the target may still be executing it`,
+          )
+          .catch(() => {});
       };
     }
     if ('onLateResponse' in this.dapClient) {
       this.dapClient.onLateResponse = (command, seq) => {
-        this.notifier.sendLog(
-          'info',
-          `Late response for abandoned DAP request "${command}" (seq ${seq}) — the adapter is still alive`,
-        ).catch(() => {});
+        this.notifier
+          .sendLog(
+            'info',
+            `Late response for abandoned DAP request "${command}" (seq ${seq}) — the adapter is still alive`,
+          )
+          .catch(() => {});
       };
     }
 
@@ -714,13 +711,15 @@ export class SessionManager {
       this.liveThreads.add(threadId);
       this.recomputeSuspension();
       this.bufferEvent(event);
-      this.notifier.sendDebugEvent('stopped', {
-        reason: body.reason,
-        threadId: body.threadId ?? 0,
-        description: body.description,
-        allThreadsStopped: body.allThreadsStopped,
-        state: this._state,
-      }).catch(() => {});
+      this.notifier
+        .sendDebugEvent('stopped', {
+          reason: body.reason,
+          threadId: body.threadId ?? 0,
+          description: body.description,
+          allThreadsStopped: body.allThreadsStopped,
+          state: this._state,
+        })
+        .catch(() => {});
     });
 
     // continued → Connected
@@ -750,12 +749,9 @@ export class SessionManager {
       this.bufferEvent(event);
       // Synthesized by DAPClient when the adapter process died on its own.
       const body = (event as DebugProtocol.TerminatedEvent).body as
-        | { adapterExited?: boolean; exitCode?: number | null }
-        | undefined;
+        { adapterExited?: boolean; exitCode?: number | null } | undefined;
       if (body?.adapterExited) {
-        this.notifier
-          .sendLog('error', `DAP adapter exited unexpectedly (code ${body.exitCode})`)
-          .catch(() => {});
+        this.notifier.sendLog('error', `DAP adapter exited unexpectedly (code ${body.exitCode})`).catch(() => {});
       }
       this.notifier.sendDebugEvent('terminated', { state: this._state }).catch(() => {});
     });
@@ -797,11 +793,13 @@ export class SessionManager {
         }
       }
       this.bufferEvent(event);
-      this.notifier.sendDebugEvent('thread', {
-        reason: body.reason,
-        threadId: body.threadId,
-        state: this._state,
-      }).catch(() => {});
+      this.notifier
+        .sendDebugEvent('thread', {
+          reason: body.reason,
+          threadId: body.threadId,
+          state: this._state,
+        })
+        .catch(() => {});
     });
 
     /*
@@ -832,11 +830,13 @@ export class SessionManager {
         this.outputRing.splice(0, this.outputRing.length - MAX_OUTPUT_RECORDS);
       }
 
-      this.notifier.sendDebugEvent('output', {
-        category: body?.category ?? 'console',
-        output: text,
-        state: this._state,
-      }).catch(() => {});
+      this.notifier
+        .sendDebugEvent('output', {
+          category: body?.category ?? 'console',
+          output: text,
+          state: this._state,
+        })
+        .catch(() => {});
     });
 
     // breakpoint → the adapter's real resolution result. Deliberately NOT
@@ -856,14 +856,16 @@ export class SessionManager {
       this.verifications.set(breakpoint.id, record);
       // The adapter only emits this once it has actually sent the write.
       this.stagedBreakpoints.delete(breakpoint.id);
-      this.notifier.sendDebugEvent('breakpoint', {
-        id: breakpoint.id,
-        verified: record.verified,
-        line: record.line,
-        message: record.message,
-        ...(record.reason !== undefined ? { reason: record.reason } : {}),
-        state: this._state,
-      }).catch(() => {});
+      this.notifier
+        .sendDebugEvent('breakpoint', {
+          id: breakpoint.id,
+          verified: record.verified,
+          line: record.line,
+          message: record.message,
+          ...(record.reason !== undefined ? { reason: record.reason } : {}),
+          state: this._state,
+        })
+        .catch(() => {});
     });
   }
 }

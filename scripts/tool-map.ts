@@ -88,9 +88,7 @@ export function normalizeGenerated(jsonSchema: Record<string, unknown>): Record<
 function normalizeProperties(props: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [key, val] of Object.entries(props)) {
-    out[key] = val && typeof val === 'object'
-      ? normalizeProperty(val as Record<string, unknown>)
-      : val;
+    out[key] = val && typeof val === 'object' ? normalizeProperty(val as Record<string, unknown>) : val;
   }
   return out;
 }
@@ -140,9 +138,7 @@ export function generateInputSchema(
   entry: SchemaEntry,
   existing: Record<string, unknown> | undefined,
 ): Record<string, unknown> {
-  const generated = normalizeGenerated(
-    z.toJSONSchema(entry.schema) as Record<string, unknown>,
-  );
+  const generated = normalizeGenerated(z.toJSONSchema(entry.schema) as Record<string, unknown>);
 
   const preserved = extensionOnlyProperties[entry.toolName] ?? [];
   if (preserved.length === 0 || !existing) return generated;
@@ -157,9 +153,7 @@ export function generateInputSchema(
 }
 
 /** Collect every description constant exported anywhere under src/tools. */
-export function collectDescriptions(
-  modules: Array<Record<string, unknown>>,
-): Record<string, string> {
+export function collectDescriptions(modules: Array<Record<string, unknown>>): Record<string, string> {
   const out: Record<string, string> = {};
   for (const mod of modules) {
     for (const [name, value] of Object.entries(mod)) {

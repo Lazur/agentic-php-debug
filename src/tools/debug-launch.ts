@@ -45,7 +45,7 @@ export async function handleDebugLaunch(
     if (await deps.isPortBound(port, hostname)) {
       return errorResult(
         `Port ${port} on ${hostname} is already in use — most likely an adapter left over from a previous session. ` +
-        `Free it (lsof -i :${port}) or launch with a different "port".`,
+          `Free it (lsof -i :${port}) or launch with a different "port".`,
         ErrorCodes.DAP_ERROR,
       );
     }

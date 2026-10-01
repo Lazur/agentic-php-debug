@@ -888,6 +888,6 @@
     "trigger"
   ],
   "additionalProperties": false,
-  "$id": "https://github.com/Lazur/php-debug-mcp/schemas/debug-plan.v1.schema.json",
+  "$id": "https://github.com/Lazur/agentic-php-debug/schemas/debug-plan.v1.schema.json",
   "title": "PHP debug plan (v1)"
 }

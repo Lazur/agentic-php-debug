@@ -45,15 +45,15 @@ describe('MCP push notifications reach a real client', () => {
     await flush();
 
     expect(received).toEqual([
-      { level: 'info', logger: 'ts-php-debug-mcp', data: 'Session state: connected → paused' },
+      { level: 'info', logger: 'agentic-php-debug', data: 'Session state: connected → paused' },
       {
         level: 'warning',
-        logger: 'ts-php-debug-mcp/debugEvent',
+        logger: 'agentic-php-debug/debugEvent',
         data: { event: 'stopped', reason: 'breakpoint', threadId: 1, state: 'paused' },
       },
       {
         level: 'info',
-        logger: 'ts-php-debug-mcp/debugEvent',
+        logger: 'agentic-php-debug/debugEvent',
         data: { event: 'thread', reason: 'started', threadId: 1, state: 'connected' },
       },
     ]);

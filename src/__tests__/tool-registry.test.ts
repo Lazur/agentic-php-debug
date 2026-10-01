@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { registerAllTools, type ServerMode } from '../tools/index.js';
 import type { SessionManager } from '../session.js';
 import { createMockBackend, launchAndPause, newSession } from './helpers/mock-backend.js';

@@ -4,9 +4,13 @@ import { SessionState } from '../session.js';
 import { successResult, ErrorCodes, type ToolResult } from './types.js';
 import { toolError } from './errors.js';
 import { assertFreshVariablesReference } from './references.js';
+import type { DebugProtocol } from '@vscode/debugprotocol';
 
 export const debugSetVariableSchema = z.object({
-  variablesReference: z.number().int().describe('Variables reference of the container (scope or object) holding the variable'),
+  variablesReference: z
+    .number()
+    .int()
+    .describe('Variables reference of the container (scope or object) holding the variable'),
   name: z.string().describe('Name of the variable to set'),
   value: z.string().describe('New value for the variable (as a string expression)'),
 });
@@ -24,12 +28,12 @@ export async function handleDebugSetVariable(
 
     assertFreshVariablesReference(session, args.variablesReference);
 
-    const response = await session.dapClient.sendRequest('setVariable', {
+    const response = await session.dapClient.sendRequest<DebugProtocol.SetVariableResponse>('setVariable', {
       variablesReference: args.variablesReference,
       name: args.name,
       value: args.value,
     });
-    const body = (response as any).body;
+    const body = response.body;
     session.noteIssuedVariablesReferences([body?.variablesReference]);
 
     return successResult({

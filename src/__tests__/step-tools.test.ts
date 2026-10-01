@@ -81,7 +81,6 @@ async function launchAndConnect(client: DAPClient, fireEvent: (name: string, bod
   return session;
 }
 
-
 // --- debug_continue tests (Requirement 5.1) ---
 
 describe('handleDebugContinue', () => {
@@ -215,9 +214,7 @@ describe('handleDebugPause', () => {
   it('reports PAUSE_UNSUPPORTED with a workaround when Xdebug cannot pause', async () => {
     const { client, mockClient, fireEvent } = createMockDAPClient();
     const session = await launchAndConnect(client, fireEvent);
-    mockClient.sendRequest.mockRejectedValueOnce(
-      new Error('Pausing the execution is not supported by Xdebug'),
-    );
+    mockClient.sendRequest.mockRejectedValueOnce(new Error('Pausing the execution is not supported by Xdebug'));
 
     const result = await handleDebugPause(session, { threadId: 1 });
 

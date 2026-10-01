@@ -67,18 +67,35 @@ function createMockBackend() {
 
 // All valid tool names across the system
 const ALL_VALID_TOOLS = [
-  'debug_launch', 'debug_status', 'debug_terminate', 'debug_wait',
-  'debug_set_breakpoints', 'debug_breakpoints_get',
-  'debug_pause', 'debug_threads',
-  'debug_continue', 'debug_next', 'debug_step_in', 'debug_step_out',
-  'debug_stack_trace', 'debug_scopes', 'debug_variables', 'debug_evaluate',
+  'debug_launch',
+  'debug_status',
+  'debug_terminate',
+  'debug_wait',
+  'debug_set_breakpoints',
+  'debug_breakpoints_get',
+  'debug_pause',
+  'debug_threads',
+  'debug_continue',
+  'debug_next',
+  'debug_step_in',
+  'debug_step_out',
+  'debug_stack_trace',
+  'debug_scopes',
+  'debug_variables',
+  'debug_evaluate',
   'debug_snapshot',
 ];
 
 // Tools that require Paused state
 const PAUSED_ONLY_TOOLS = [
-  'debug_continue', 'debug_next', 'debug_step_in', 'debug_step_out',
-  'debug_stack_trace', 'debug_scopes', 'debug_variables', 'debug_evaluate',
+  'debug_continue',
+  'debug_next',
+  'debug_step_in',
+  'debug_step_out',
+  'debug_stack_trace',
+  'debug_scopes',
+  'debug_variables',
+  'debug_evaluate',
   'debug_snapshot',
 ];
 
@@ -95,47 +112,33 @@ describe('Property 7: allowedTools completeness per state', () => {
    */
   it('returns non-empty allowedTools with only valid tool names for every state', () => {
     fc.assert(
-      fc.property(
-        fc.constantFrom(...ALL_STATES),
-        (state) => {
-          const { client, eventHandlers } = createMockBackend();
-          const session = new SessionManager(stubConfig(), client as any, stubPathMapper(), stubNotifier());
+      fc.property(fc.constantFrom(...ALL_STATES), (state) => {
+        // For property testing, we verify the allowedToolsByState map directly
+        // since handleDebugStatus just reads session.status.state and looks up the map.
+        const tools = allowedToolsByState[state];
 
-          // Force the session into the desired state via internal state transitions
-          // We use the allowedToolsByState map directly since handleDebugStatus reads session.status
-          // which depends on session.state. We need to manipulate the session state.
-          // The simplest approach: use the session's launch + event firing to reach states.
+        // allowedTools must be non-empty
+        expect(tools).toBeDefined();
+        expect(tools.length).toBeGreaterThan(0);
 
-          // For property testing, we verify the allowedToolsByState map directly
-          // since handleDebugStatus just reads session.status.state and looks up the map.
-          const tools = allowedToolsByState[state];
-
-          // allowedTools must be non-empty
-          expect(tools).toBeDefined();
-          expect(tools.length).toBeGreaterThan(0);
-
-          // Every tool in the list must be a valid tool name
-          for (const tool of tools) {
-            expect(ALL_VALID_TOOLS).toContain(tool);
-          }
-        },
-      ),
+        // Every tool in the list must be a valid tool name
+        for (const tool of tools) {
+          expect(ALL_VALID_TOOLS).toContain(tool);
+        }
+      }),
       { numRuns: 100 },
     );
   });
 
   it('paused-only tools do not appear in Connected or Listening states', () => {
     fc.assert(
-      fc.property(
-        fc.constantFrom(SessionState.Connected, SessionState.Listening),
-        (state) => {
-          const tools = allowedToolsByState[state];
+      fc.property(fc.constantFrom(SessionState.Connected, SessionState.Listening), (state) => {
+        const tools = allowedToolsByState[state];
 
-          for (const pausedTool of PAUSED_ONLY_TOOLS) {
-            expect(tools).not.toContain(pausedTool);
-          }
-        },
-      ),
+        for (const pausedTool of PAUSED_ONLY_TOOLS) {
+          expect(tools).not.toContain(pausedTool);
+        }
+      }),
       { numRuns: 100 },
     );
   });

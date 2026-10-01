@@ -16,12 +16,8 @@ export class PathMapper {
   constructor(mappings: PathMapping[]) {
     // Normalize: ensure prefixes end with '/' for directory matching,
     // but keep originals for replacement so we don't double-slash.
-    this.byLocal = [...mappings].sort(
-      (a, b) => b.local.length - a.local.length,
-    );
-    this.byRemote = [...mappings].sort(
-      (a, b) => b.remote.length - a.remote.length,
-    );
+    this.byLocal = [...mappings].sort((a, b) => b.local.length - a.local.length);
+    this.byRemote = [...mappings].sort((a, b) => b.remote.length - a.remote.length);
   }
 
   /** Translate a local path to its remote equivalent. */

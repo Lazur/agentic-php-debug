@@ -64,11 +64,7 @@ export async function runContinuation(
  * Each case has a different remedy, so it is worth distinguishing them rather
  * than emitting one vague warning.
  */
-function notResumedNote(
-  session: SessionManager,
-  threadId: number,
-  observed: number | undefined,
-): string {
+function notResumedNote(session: SessionManager, threadId: number, observed: number | undefined): string {
   if (observed === undefined) {
     const suspended = session.status.stoppedThreads.map((t) => t.threadId);
     return (

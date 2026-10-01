@@ -71,24 +71,34 @@ function createSilentMockProcess() {
 
       const request = JSON.parse(body);
       if (request.command === 'initialize') {
-        stdout.write(frameMessage({
-          seq: 0, type: 'response', request_seq: request.seq,
-          command: 'initialize', success: true,
-          body: { supportsConfigurationDoneRequest: true },
-        }));
+        stdout.write(
+          frameMessage({
+            seq: 0,
+            type: 'response',
+            request_seq: request.seq,
+            command: 'initialize',
+            success: true,
+            body: { supportsConfigurationDoneRequest: true },
+          }),
+        );
       }
       // All other requests: no response (triggers timeout)
     }
   });
 
   const process: ChildProcessLike = {
-    stdin, stdout, stderr,
+    stdin,
+    stdout,
+    stderr,
     pid: 99999,
     on(event: 'exit', listener: (code: number | null) => void) {
       emitter.on(event, listener);
       return process;
     },
-    kill() { emitter.emit('exit', 0); return true; },
+    kill() {
+      emitter.emit('exit', 0);
+      return true;
+    },
   };
 
   return { process, emitter };
@@ -110,19 +120,33 @@ function createMockDAPClient() {
       if (i !== -1) list.splice(i, 1);
     },
     onAnyEvent() {},
-    async initialize() { return {} as any; },
+    async initialize() {
+      return {} as any;
+    },
     launch: vi.fn(async () => ({}) as any),
-    async configurationDone() { return {} as any; },
-    async sendRequest() { return {} as any; },
+    async configurationDone() {
+      return {} as any;
+    },
+    async sendRequest() {
+      return {} as any;
+    },
     async disconnect() {},
-    waitForEvent() { return Promise.resolve({} as DebugProtocol.Event); },
-    isAlive() { return true; },
-    getStatus() { return { alive: true, pid: 1234 }; },
-    getSeq() { return 1; },
+    waitForEvent() {
+      return Promise.resolve({} as DebugProtocol.Event);
+    },
+    isAlive() {
+      return true;
+    },
+    getStatus() {
+      return { alive: true, pid: 1234 };
+    },
+    getSeq() {
+      return 1;
+    },
     onTrace: null,
     onStderr: null,
   };
-  const client = mockClient as unknown as import('../dap-client.js').DAPClient;
+  const client = mockClient as unknown as DAPClient;
 
   function getHandlerCount(eventName: string): number {
     return eventHandlers.get(eventName)?.length ?? 0;
@@ -156,13 +180,15 @@ describe('Property 9: DAPClient request timeout with correct error', () => {
   it('sendRequest rejects with error containing command name and timeout duration', async () => {
     // Suppress expected unhandled rejections from fake timer side effects
     const suppressedErrors: Error[] = [];
-    const handler = (err: unknown) => { suppressedErrors.push(err as Error); };
+    const handler = (err: unknown) => {
+      suppressedErrors.push(err as Error);
+    };
     process.on('unhandledRejection', handler);
 
     try {
       await fc.assert(
         fc.asyncProperty(
-          fc.string({ minLength: 1, maxLength: 20 }).filter(s => /^[a-zA-Z_]+$/.test(s)),
+          fc.string({ minLength: 1, maxLength: 20 }).filter((s) => /^[a-zA-Z_]+$/.test(s)),
           fc.integer({ min: 100, max: 60000 }),
           async (command, timeout) => {
             vi.useFakeTimers();
@@ -283,52 +309,39 @@ describe('Property 11: Idempotent event handler registration', () => {
    */
   it('consecutive launches without terminate do not stack duplicate handlers', async () => {
     await fc.assert(
-      fc.asyncProperty(
-        fc.integer({ min: 2, max: 10 }),
-        async (launchCount) => {
-          const { client, getHandlerCount } = createMockDAPClient();
-          const session = new SessionManager(
-            stubConfig(), client, stubPathMapper(), stubNotifier(),
-          );
+      fc.asyncProperty(fc.integer({ min: 2, max: 10 }), async (launchCount) => {
+        const { client, getHandlerCount } = createMockDAPClient();
+        const session = new SessionManager(stubConfig(), client, stubPathMapper(), stubNotifier());
 
-          const trackedEvents = ['stopped', 'continued', 'terminated', 'exited', 'thread'];
+        const trackedEvents = ['stopped', 'continued', 'terminated', 'exited', 'thread'];
 
-          // First launch establishes the baseline
+        // First launch establishes the baseline
+        await session.launch();
+        const baselineCount = trackedEvents.reduce((sum, evt) => sum + getHandlerCount(evt), 0);
+        expect(baselineCount).toBeGreaterThan(0);
+
+        // Additional launches without terminate should NOT add more handlers
+        for (let i = 1; i < launchCount; i++) {
+          // Reset state to allow re-launch (simulate re-launch without terminate)
+          // We need to set state back to allow launch() to proceed
+          // In practice, launch() sets state to Initializing first
           await session.launch();
-          const baselineCount = trackedEvents.reduce(
-            (sum, evt) => sum + getHandlerCount(evt), 0,
-          );
-          expect(baselineCount).toBeGreaterThan(0);
-
-          // Additional launches without terminate should NOT add more handlers
-          for (let i = 1; i < launchCount; i++) {
-            // Reset state to allow re-launch (simulate re-launch without terminate)
-            // We need to set state back to allow launch() to proceed
-            // In practice, launch() sets state to Initializing first
-            await session.launch();
-            const currentCount = trackedEvents.reduce(
-              (sum, evt) => sum + getHandlerCount(evt), 0,
-            );
-            expect(currentCount).toBe(baselineCount);
-          }
-        },
-      ),
+          const currentCount = trackedEvents.reduce((sum, evt) => sum + getHandlerCount(evt), 0);
+          expect(currentCount).toBe(baselineCount);
+        }
+      }),
       { numRuns: 50 },
     );
   });
 
   it('terminate unregisters handlers so the next launch registers exactly one set', async () => {
     const { client, getHandlerCount } = createMockDAPClient();
-    const session = new SessionManager(
-      stubConfig(), client, stubPathMapper(), stubNotifier(),
-    );
+    const session = new SessionManager(stubConfig(), client, stubPathMapper(), stubNotifier());
 
     const trackedEvents = ['stopped', 'continued', 'terminated', 'exited', 'thread'];
 
     await session.launch();
-    const firstCount = trackedEvents.reduce(
-      (sum, evt) => sum + getHandlerCount(evt), 0,
-    );
+    const firstCount = trackedEvents.reduce((sum, evt) => sum + getHandlerCount(evt), 0);
 
     await session.terminate();
     expect(trackedEvents.reduce((sum, evt) => sum + getHandlerCount(evt), 0)).toBe(0);
@@ -338,17 +351,13 @@ describe('Property 11: Idempotent event handler registration', () => {
     // The backend outlives terminate() — DAPClient keeps its handler map and a
     // relaunch respawns into the same client — so anything above one set here
     // means every event is processed twice.
-    const secondCount = trackedEvents.reduce(
-      (sum, evt) => sum + getHandlerCount(evt), 0,
-    );
+    const secondCount = trackedEvents.reduce((sum, evt) => sum + getHandlerCount(evt), 0);
     expect(secondCount).toBe(firstCount);
   });
 
   it('after terminate + relaunch, one stop is processed exactly once', async () => {
     const { client, eventHandlers } = createMockDAPClient();
-    const session = new SessionManager(
-      stubConfig(), client, stubPathMapper(), stubNotifier(),
-    );
+    const session = new SessionManager(stubConfig(), client, stubPathMapper(), stubNotifier());
 
     await session.launch();
     await session.terminate();
@@ -356,7 +365,9 @@ describe('Property 11: Idempotent event handler registration', () => {
 
     const before = session.suspensionId;
     const stopped: DebugProtocol.StoppedEvent = {
-      seq: 0, type: 'event', event: 'stopped',
+      seq: 0,
+      type: 'event',
+      event: 'stopped',
       body: { reason: 'breakpoint', threadId: 1, allThreadsStopped: false },
     };
     for (const handler of [...(eventHandlers.get('stopped') ?? [])]) handler(stopped);
