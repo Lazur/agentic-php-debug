@@ -87,6 +87,7 @@ DEFAULT_DIR=0
 REF=main
 SOURCE=
 PROJECT=
+PROJECT_SLUG=
 REMOTE_ROOT=
 DDEV_ROOT=
 XDEBUG_PORT=9003
@@ -128,6 +129,8 @@ parse_args() {
   if [ -n "$PROJECT" ]; then
     [ -d "$PROJECT" ] || die "--project directory does not exist: $PROJECT"
     PROJECT="$(cd "$PROJECT" && pwd -P)"
+    PROJECT_SLUG="$(basename "$PROJECT" | tr 'A-Z' 'a-z' | tr -c 'a-z0-9\n' '-' | sed 's/--*/-/g; s/^-//; s/-$//')"
+    [ -n "$PROJECT_SLUG" ] || PROJECT_SLUG=project
   fi
 }
 
@@ -411,14 +414,42 @@ register_claude() {
 }
 
 register_codex() {
-  [ -z "$PROJECT" ] || info "Codex has no per-project scope; its entry points at this project's config."
+  # Codex has no per-project scope, so a project gets its own entries instead of
+  # taking over the global ones every other directory uses.
+  local suffix=
+  if [ -n "$PROJECT" ]; then
+    suffix="-$PROJECT_SLUG"
+    info "Codex has no per-project scope; this project's entries end in $suffix."
+  fi
   local name mode args
   while read -r name mode; do
     args=(); while IFS= read -r a; do args+=("$a"); done < <(server_args "$mode")
-    codex mcp remove "$name" </dev/null >/dev/null 2>&1 || true
-    codex mcp add "$name" -- "$SERVER_CMD" "${args[@]}" </dev/null >/dev/null
-    ok "Codex: $name ($mode mode)"
+    codex mcp remove "$name$suffix" </dev/null >/dev/null 2>&1 || true
+    codex mcp add "$name$suffix" -- "$SERVER_CMD" "${args[@]}" </dev/null >/dev/null
+    ok "Codex: $name$suffix ($mode mode)"
+    [ -z "$PROJECT" ] || repoint_codex_global "$name"
   done < <(entries)
+}
+
+# Older --project runs registered the project's config under the global name.
+# Point such an entry back at the global config, keeping its other args.
+repoint_codex_global() {
+  local name="$1" args=() a
+  while IFS= read -r a; do args+=("$a"); done < <(codex mcp get "$name" --json </dev/null 2>/dev/null | node -e '
+    const [global] = process.argv.slice(1);
+    let a;
+    try { a = JSON.parse(require("fs").readFileSync(0, "utf8")).transport.args || []; } catch { process.exit(0); }
+    const i = a.indexOf("--config");
+    if (i < 0 || !/\/\.(agentic-php-debug|php-debug-mcp)\.json$/.test(a[i + 1] || "")) process.exit(0);
+    a[i + 1] = global;
+    const r = a.indexOf("--runs-dir");
+    if (r >= 0) a.splice(r, 2);
+    console.log(a.join("\n"));
+  ' "$GLOBAL_CONFIG")
+  [ "${#args[@]}" -gt 0 ] || return 0
+  codex mcp remove "$name" </dev/null >/dev/null 2>&1 || true
+  codex mcp add "$name" -- "$SERVER_CMD" "${args[@]}" </dev/null >/dev/null
+  ok "Codex: $name points at the global config again (an earlier --project run had taken it over)"
 }
 
 register_clients() {
@@ -432,7 +463,13 @@ register_clients() {
 
 # For clients without a registration CLI (Claude Desktop, Cursor, Kiro, Windsurf).
 write_client_snippet() {
-  SNIPPET="$INSTALL_DIR/mcp.json"
+  # One file per config: a project's snippet must not replace the global one.
+  if [ -n "$PROJECT" ]; then
+    SNIPPET="$INSTALL_DIR/projects/$PROJECT_SLUG.mcp.json"
+    mkdir -p "$INSTALL_DIR/projects"
+  else
+    SNIPPET="$INSTALL_DIR/mcp.json"
+  fi
   # stdin: "@name" starts a server, every following line is one of its args.
   local name mode
   while read -r name mode; do printf '@%s\n' "$name"; server_args "$mode"; done < <(entries) \
@@ -447,7 +484,11 @@ write_client_snippet() {
       require("fs").writeFileSync(file, JSON.stringify({ mcpServers: servers }, null, 2) + "\n");
     ' "$SNIPPET" "$SERVER_CMD"
   ok "config for other clients: $SNIPPET"
-  info "paste its mcpServers into claude_desktop_config.json, ~/.cursor/mcp.json or .kiro/settings/mcp.json"
+  if [ -n "$PROJECT" ]; then
+    info "paste its mcpServers into $PROJECT/.cursor/mcp.json or $PROJECT/.kiro/settings/mcp.json"
+  else
+    info "paste its mcpServers into claude_desktop_config.json, ~/.cursor/mcp.json or ~/.kiro/settings/mcp.json"
+  fi
 }
 
 # --- skill ------------------------------------------------------------------
@@ -624,11 +665,21 @@ uninstall() {
       claude mcp remove -s user "$n" >/dev/null 2>&1 && ok "Claude Code (user): removed $n" || true
       [ -z "$PROJECT" ] || { (cd "$PROJECT" && claude mcp remove -s local "$n" >/dev/null 2>&1) && ok "Claude Code (local): removed $n" || true; }
     fi
-    # `codex mcp remove` exits 0 even when nothing matched, so ask first.
-    if has codex && codex mcp get "$n" </dev/null >/dev/null 2>&1; then
-      codex mcp remove "$n" </dev/null >/dev/null 2>&1 && ok "Codex: removed $n"
-    fi
   done
+  # Codex: the global names plus every per-project entry that runs this install's shim.
+  if has codex; then
+    while IFS= read -r n; do
+      codex mcp remove "$n" </dev/null >/dev/null 2>&1 && ok "Codex: removed $n"
+    done < <(codex mcp list --json </dev/null 2>/dev/null | node -e '
+      const dirs = process.argv.slice(1).map((d) => d + "/");
+      let list;
+      try { list = JSON.parse(require("fs").readFileSync(0, "utf8")); } catch { process.exit(0); }
+      for (const s of list) {
+        const cmd = (s.transport && s.transport.command) || "";
+        if (s.name === "php-debug" || s.name === "php-debug-plan" || dirs.some((d) => cmd.startsWith(d))) console.log(s.name);
+      }
+    ' "$INSTALL_DIR" "$LEGACY_DIR")
+  fi
   local link
   for link in "$HOME/.claude/skills/php-debug-modes" "${PROJECT:+$PROJECT/.claude/skills/php-debug-modes}" \
               "$HOME/.local/bin/agentic-php-debug" "$HOME/.local/bin/php-debug-mcp" "$HOME/.local/bin/php-debug-plan"; do

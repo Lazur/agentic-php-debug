@@ -40,19 +40,38 @@ prints the one `apt`/`dnf`/`apk` command to run instead, because it will not `su
 curl -fsSL …/install.sh | bash -s -- --project ~/code/my-app --remote-root /var/www/html
 ```
 
-`--project` writes `my-app/.agentic-php-debug.json` with the path mapping container → host, registers
-the server for that project only (Claude Code *local* scope, so no personal paths end up in a
-committed `.mcp.json`), links the skill into `my-app/.claude/skills/`, and stores plan runs in
-`my-app/.php-debug-plan/runs/`.
+Or from inside the project, where `.` is the project:
+
+```bash
+cd ~/code/my-app
+curl -fsSL …/install.sh | bash -s -- --project .
+```
+
+A DDEV project needs no `--remote-root`: the installer maps `/var/www/html` itself. Run it once per
+project; the server in `~/.agentic-php-debug` is shared, each project gets its own config and
+registrations.
+
+`--project` writes `my-app/.agentic-php-debug.json` with the path mapping container → host, links
+the skill into `my-app/.claude/skills/`, stores plan runs in `my-app/.php-debug-plan/runs/`, and
+registers the server for that project only:
+
+| Client | Per-project registration |
+|---|---|
+| Claude Code | `php-debug` in the *local* scope: per user, per project, kept in `~/.claude.json`, so no personal paths end up in a committed `.mcp.json`. Inside the project it wins over the global entry |
+| Codex | `php-debug-<project>` (for example `php-debug-my-app`), because Codex has no per-project scope. The global `php-debug` keeps the global config |
 
 **Claude Desktop, Cursor, Kiro, Windsurf, or any other MCP client:** run the installer, then copy
-the `mcpServers` block from `~/.agentic-php-debug/mcp.json` into that client's config file:
+the `mcpServers` block from the snippet it wrote into that client's config file. The global install
+writes `~/.agentic-php-debug/mcp.json`; each `--project` install writes its own
+`~/.agentic-php-debug/projects/<project>.mcp.json`.
 
-| Client | Config file |
-|---|---|
-| Claude Desktop | `~/Library/Application Support/Claude/claude_desktop_config.json` |
-| Cursor | `~/.cursor/mcp.json` |
-| Kiro | `.kiro/settings/mcp.json` |
+| Client | Global snippet goes to | Project snippet goes to |
+|---|---|---|
+| Claude Desktop | `~/Library/Application Support/Claude/claude_desktop_config.json` | (no per-project config) |
+| Cursor | `~/.cursor/mcp.json` | `my-app/.cursor/mcp.json` |
+| Kiro | `~/.kiro/settings/mcp.json` | `my-app/.kiro/settings/mcp.json` |
+
+The snippets hold absolute paths under your home directory, so keep the project files out of git.
 
 The entry calls `~/.agentic-php-debug/bin/agentic-php-debug`. That shim pins the `node` binary found at
 install time, so GUI apps that do not load your shell profile (nvm, fnm, Volta) still start it.

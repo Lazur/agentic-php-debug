@@ -1,0 +1,148 @@
+#!/bin/bash
+# curl as a logged-in user of a local DDEV Drupal site.
+#
+#   drupal-curl [--as USER] [--relogin] <path|url> [curl args...]
+#   drupal-curl [--as USER] [--relogin] --login [<path|url>]   # log in or confirm, no request
+#   drupal-curl [--as USER] --logout                           # forget the stored session
+#
+# Run it from anywhere inside the DDEV project (or set $DRUPAL_ROOT). A <path>
+# starting with / is resolved against $DRUPAL_BASE_URL, which defaults to
+# http://<name>.<project_tld> from .ddev/config.yaml; a full http(s):// URL is
+# used as is. Everything after the target goes to curl unchanged. The request
+# runs with -sS -k --globoff: -k because macOS curl does not trust the DDEV
+# certificate, --globoff because Views exposed filters put literal [] in query
+# strings.
+#
+# USER is a name or a uid (default $DRUPAL_CURL_USER, else uid 1). Each user
+# and origin has its own cookie jar in $DRUPAL_CURL_STATE (default
+# <project>/.php-debug-plan/drupal-curl/, which ignores itself in git), and
+# --logout forgets all of the user's jars. Before every request the session is
+# checked with GET /user and, when it is gone, renewed through `drush uli`.
+# Each renewal writes one "used one-time login link" log entry.
+#
+# The check and login requests send XDEBUG_IGNORE, so with `ddev xdebug on`
+# only the main request reaches the debugger. That is what lets a debug plan
+# use this script as its trigger. When Xdebug runs with
+# start_with_request=trigger, add -b XDEBUG_SESSION=1 to the curl args.
+
+set -u
+
+usage() { sed -n '2,/^[^#]/s/^# \{0,1\}//p' "$0"; }
+die() { echo "drupal-curl: $*" >&2; exit 1; }
+
+find_root() {
+  local dir="$PWD"
+  while [ "$dir" != / ]; do
+    [ -f "$dir/.ddev/config.yaml" ] && { printf '%s\n' "$dir"; return; }
+    dir="$(dirname "$dir")"
+  done
+  return 1
+}
+
+# Top-level scalar from .ddev/config.yaml, without quotes or a trailing comment.
+ddev_config() {
+  sed -nE "s/^$1:[[:space:]]*['\"]?([^'\"#[:space:]]*).*/\1/p" "$root/.ddev/config.yaml" | head -n 1
+}
+
+user="${DRUPAL_CURL_USER:-1}"
+mode=request
+relogin=0
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --as) [ $# -ge 2 ] || die "--as needs a user name or uid"; user="$2"; shift 2 ;;
+    --as=*) user="${1#--as=}"; shift ;;
+    --relogin) relogin=1; shift ;;
+    --login) mode=login; shift ;;
+    --logout) mode=logout; shift ;;
+    -h|--help) usage; exit 0 ;;
+    --) shift; break ;;
+    *) break ;;
+  esac
+done
+
+root="${DRUPAL_ROOT:-$(find_root)}" || die "not inside a DDEV project (no .ddev/config.yaml above $PWD); set DRUPAL_ROOT"
+jar_dir="${DRUPAL_CURL_STATE:-$root/.php-debug-plan/drupal-curl}"
+if [ -n "${DRUPAL_BASE_URL:-}" ]; then
+  base_url="$DRUPAL_BASE_URL"
+else
+  name="$(ddev_config name)"
+  tld="$(ddev_config project_tld)"
+  base_url="http://${name:-$(basename "$root")}.${tld:-ddev.site}"
+fi
+base_url="${base_url%/}"
+
+[ -n "$user" ] || die "empty user"
+user_key=$(printf '%s' "$user" | tr -c 'A-Za-z0-9._-' '_')
+
+if [ "$mode" = logout ]; then
+  rm -f "$jar_dir/$user_key@"*.cookies
+  exit 0
+fi
+
+target="${1:-}"
+[ $# -gt 0 ] && shift
+if [ -z "$target" ] && [ "$mode" = request ]; then
+  usage >&2
+  exit 2
+fi
+case "$target" in
+  '') url="$base_url/" ;;
+  http://*|https://*) url="$target" ;;
+  /*) url="$base_url$target" ;;
+  *) die "target must be a path starting with / or an http(s):// URL: $target" ;;
+esac
+origin=$(printf '%s\n' "$url" | sed -E 's#^(https?://[^/?#]+).*#\1#')
+# One jar per user and origin: a login starts its jar afresh, and http (SESS)
+# and https (SSESS) sessions must not wipe each other.
+jar="$jar_dir/$user_key@$(printf '%s' "$origin" | sed 's#://#_#' | tr -c 'A-Za-z0-9._-' '_').cookies"
+
+# Prints the uid of the session in the jar, or fails when there is none.
+# Authenticated GET /user redirects to /user/<uid>, anonymous to /user/login.
+session_uid() {
+  [ -f "$jar" ] || return 1
+  local location
+  location=$(curl -s -k -o /dev/null -b "$jar" -b XDEBUG_IGNORE=1 \
+    -w '%{redirect_url}' "$origin/user") || return 1
+  printf '%s\n' "$location" | sed -nE 's#^https?://[^/]+/user/([0-9]+)([?#].*)?$#\1#p' | grep .
+}
+
+# Opens a fresh one-time login link without any old cookie (the route only
+# serves anonymous users) and stores the new session in the jar. Following the
+# redirect to /user/<uid>/edit renders the "one-time login link" status
+# message, so it does not show up in the next real page instead.
+login() {
+  local uli_opt link result code path
+  case "$user" in
+    *[!0-9]*) uli_opt="--name=$user" ;;
+    *) uli_opt="--uid=$user" ;;
+  esac
+  link=$(cd "$root" && ddev drush uli --no-browser --uri="$origin" "$uli_opt" | grep -E '^https?://' | tail -n 1)
+  [ -n "$link" ] || die "drush uli gave no login link for user '$user'"
+
+  # Cookie jars hold live sessions: keep them private and out of git.
+  mkdir -p "$jar_dir" && chmod 700 "$jar_dir"
+  [ -f "$jar_dir/.gitignore" ] || printf '*\n' >"$jar_dir/.gitignore"
+  rm -f "$jar"
+  result=$(umask 077; curl -s -k -L -o /dev/null -b XDEBUG_IGNORE=1 -c "$jar" \
+    -w '%{http_code} %{url_effective}' "$link")
+  code="${result%% *}"
+  # Drop the query: it holds the pass-reset token.
+  path=$(printf '%s\n' "${result#* }" | sed -E 's#^https?://[^/]+##; s#[?].*##')
+  case "$code $path" in
+    '200 /user/'*/edit) uid="${path#/user/}"; uid="${uid%/edit}" ;;
+    *) rm -f "$jar"; die "login as '$user' failed: HTTP $code at $path" ;;
+  esac
+  echo "drupal-curl: logged in as uid $uid @ $origin" >&2
+}
+
+uid=""
+[ "$relogin" = 1 ] || uid=$(session_uid) || uid=""
+[ -n "$uid" ] || login
+
+if [ "$mode" = login ]; then
+  echo "drupal-curl: uid $uid @ $origin" >&2
+  exit 0
+fi
+
+exec curl -sS -k --globoff -b "$jar" "$url" "$@"

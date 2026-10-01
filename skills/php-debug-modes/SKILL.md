@@ -8,7 +8,8 @@ description: >-
   writing, validating or fixing a debug plan, running php-debug-plan, reading a run report or golden
   diff, deciding why a breakpoint never hit or why Xdebug never connected, or picking between the two
   modes. Use it even when the request only says "why is $x wrong", "debug this failing request" or
-  "step through this function" and never mentions plans or modes.
+  "step through this function" and never mentions plans or modes. Also use it to request a page of a
+  DDEV Drupal site as a logged-in user (scripts/drupal-curl), for example when plain curl gets a 403.
 ---
 
 # Debugging PHP: plan mode and ReAct mode
@@ -150,6 +151,35 @@ with `["Exception"]` reaches it in one trigger instead of a bisect.
 When you have the answer, write the decisive observation as a plan (probes on the lines that proved
 it, `expect` lines for the values) and check it with `debug_plan_validate`. That is how an
 interactive session becomes something anyone can re-run.
+
+## Drupal pages behind a login
+
+Plain `curl`, an `http` trigger and web-fetch tools are anonymous, so admin pages answer 403 and the
+code you want to reach never runs. `scripts/drupal-curl` (next to this file) is curl as a logged-in
+user of a DDEV Drupal site: it logs in through `ddev drush uli`, keeps the session, and passes
+everything after the target to curl.
+
+```bash
+scripts/drupal-curl /admin/reports/logs                            # as uid 1
+scripts/drupal-curl /admin/reports/logs -o /dev/null -w '%{http_code}\n'
+scripts/drupal-curl --as editor /node/add                          # another user, by name or uid
+scripts/drupal-curl --relogin --login                              # new session, no request
+```
+
+Run it from inside the DDEV project; it reads the site URL from `.ddev/config.yaml`
+(`DRUPAL_BASE_URL` overrides it). Sessions live in `.php-debug-plan/drupal-curl/`, which ignores
+itself in git. Each new login adds a "used one-time login link" entry to the site's log.
+
+Its session check and login send `XDEBUG_IGNORE`, so with `ddev xdebug on` only the real request
+reaches the debugger. That makes it a plan trigger (the server needs `--allow-command-trigger`):
+
+```jsonc
+"trigger": { "kind": "command", "xdebugEnv": false,
+  "argv": [".claude/skills/php-debug-modes/scripts/drupal-curl", "/admin/reports/logs", "-o", "/dev/null"] }
+```
+
+The `argv[0]` path assumes a project install of this skill; use the absolute path otherwise. When
+Xdebug runs with `start_with_request=trigger`, add `"-b", "XDEBUG_SESSION=1"` to the curl args.
 
 ## When a run does not do what you expected
 

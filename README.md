@@ -34,6 +34,22 @@ curl -fsSL https://raw.githubusercontent.com/Lazur/agentic-php-debug/main/instal
 This builds the server, registers it with Claude Code and Codex, and checks Xdebug. Docker
 projects, other MCP clients and every option are covered in [INSTALL.md](INSTALL.md).
 
+For one project (needed when PHP runs in DDEV, Docker or a VM, so container paths map to yours):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Lazur/agentic-php-debug/main/install.sh | bash -s -- --project ~/code/my-app
+```
+
+Or run it from inside the project:
+
+```bash
+cd ~/code/my-app
+curl -fsSL https://raw.githubusercontent.com/Lazur/agentic-php-debug/main/install.sh | bash -s -- --project .
+```
+
+DDEV projects get the `/var/www/html` mapping automatically; for other containers add
+`--remote-root /var/www/html` (or wherever the code is mounted).
+
 From a clone:
 
 ```bash
@@ -215,7 +231,9 @@ npx @modelcontextprotocol/inspector --cli \
 workflow: choosing a mode, writing and validating a plan, running it, reading the report, and the
 traps that actually bite (a breakpoint stops *before* its line; strings render in double quotes; a
 plan owns its trigger). Its `references/` carry the full plan schema and a troubleshooting guide for
-every outcome and error code.
+every outcome and error code. [`scripts/drupal-curl`](skills/php-debug-modes/scripts/drupal-curl)
+requests a DDEV Drupal site as a logged-in user (through `drush uli`), so the agent can reach admin
+pages, and a plan can use it as a `command` trigger.
 
 Install it by copying or symlinking the directory into the project you debug:
 
@@ -234,8 +252,45 @@ short form for clients that use prompts instead of skills.
 
 ## MCP client configuration
 
-[`mcp.example.json`](mcp.example.json) registers both modes as separate servers — copy it into your
-client's config and replace the absolute paths:
+The [installer](INSTALL.md) does this for you. What it sets up:
+
+| Install | Claude Code | Codex | Snippet for other clients |
+|---|---|---|---|
+| global | `php-debug`, user scope | `php-debug` | `~/.agentic-php-debug/mcp.json` |
+| `--project ~/code/my-app` | `php-debug`, local scope (wins inside the project) | `php-debug-my-app` | `~/.agentic-php-debug/projects/my-app.mcp.json` |
+
+The global entries use `~/.agentic-php-debug/config.json`, which has no path mappings: right for PHP
+on this machine. A project's entries use `my-app/.agentic-php-debug.json`, which maps the container
+paths (DDEV, Docker, a VM) to yours, and keep plan runs in `my-app/.php-debug-plan/runs`. Every entry
+runs `--mode all`. A project snippet looks like this:
+
+```json
+{
+  "mcpServers": {
+    "php-debug": {
+      "command": "/Users/you/.agentic-php-debug/bin/agentic-php-debug",
+      "args": [
+        "--config",
+        "/Users/you/code/my-app/.agentic-php-debug.json",
+        "--mode",
+        "all",
+        "--runs-dir",
+        "/Users/you/code/my-app/.php-debug-plan/runs"
+      ]
+    }
+  }
+}
+```
+
+Paste a global snippet into `claude_desktop_config.json`, `~/.cursor/mcp.json` or
+`~/.kiro/settings/mcp.json`, and a project snippet into `my-app/.cursor/mcp.json` or
+`my-app/.kiro/settings/mcp.json`. The command is a shim that pins the `node` binary found at install
+time, so GUI apps that do not load your shell profile (nvm, fnm, Volta) still start it.
+
+### By hand
+
+From a clone without the installer, [`mcp.example.json`](mcp.example.json) registers both modes as
+separate servers. Copy it into your client's config and replace the absolute paths:
 
 ```json
 {
