@@ -62,12 +62,12 @@ install time, so GUI apps that do not load your shell profile (nvm, fnm, Volta) 
 | Option | Default | Effect |
 |---|---|---|
 | `--project DIR` | none | Per-project config, registration, skill and agent files |
-| `--remote-root PATH` | none | Map a container path onto `--project` (Docker/VM) |
+| `--remote-root PATH` | none (DDEV: `/var/www/html`) | Map a container path onto `--project` (Docker/VM) |
 | `--port N` | `9003` | Xdebug port the server listens on |
 | `--client LIST` | `auto` | `claude`, `codex`, both, or `none`. `auto` = whichever is on `PATH` |
 | `--mode MODE` | `all` | `all` = one server with every tool; `split` = `php-debug` (ReAct) + `php-debug-plan` (plan); `react` or `plan` = only that one |
 | `--allow-command-trigger` | off | Let debug plans start processes (`"trigger": {"kind": "command"}`). Without it, plans can only use HTTP triggers |
-| `--xdebug` | off | Install/configure Xdebug for the local `php` |
+| `--xdebug` | off | Install/configure Xdebug for the local `php`; in a running DDEV project, `ddev xdebug on` |
 | `--dir DIR` | `~/.agentic-php-debug` | Install root (or set `AGENTIC_PHP_DEBUG_HOME`) |
 | `--ref REF` | `main` | Branch or tag |
 | `--source DIR` | none | Build an existing checkout instead of cloning (the default when you run `./install.sh` from a clone) |
@@ -101,7 +101,10 @@ xdebug.client_host=host.docker.internal
 
 On Linux Docker, add `extra_hosts: ["host.docker.internal:host-gateway"]` to the service.
 
-DDEV: run `ddev xdebug on`. Use `--remote-root /var/www/html`.
+DDEV: run `ddev xdebug on`, or pass `--xdebug` and the installer runs it while the project is up.
+When `--project` (or, without it, the current directory) is inside a DDEV project, the installer
+checks Xdebug in the web container instead of the host `php`, and maps `/var/www/html` for you.
+It never starts a stopped project.
 
 ## Check that it works
 

@@ -53,8 +53,10 @@ ${B}What${N}
                          project-scoped registration
   --remote-root PATH     Docker/VM document root to map onto --project
                          (e.g. /var/www/html). Writes pathMappings for you.
+                         DDEV projects get /var/www/html automatically.
   --port N               Xdebug listen port written into new configs (default: 9003)
   --xdebug               Install/enable Xdebug for the local 'php' if it is missing
+                         (in a running DDEV project: ddev xdebug on)
 
 ${B}MCP client registration${N}
   --client LIST          auto | none | comma list of: claude,codex  (default: auto)
@@ -86,6 +88,7 @@ REF=main
 SOURCE=
 PROJECT=
 REMOTE_ROOT=
+DDEV_ROOT=
 XDEBUG_PORT=9003
 WITH_XDEBUG=0
 CLIENTS=auto
@@ -145,6 +148,16 @@ detect_source() {
   if [ -f "$dir/package.json" ] && grep -q '"name": "agentic-php-debug"' "$dir/package.json"; then
     SOURCE="$dir"
   fi
+}
+
+# The DDEV project around --project, or around the current directory when there
+# is no --project (curl | bash is usually run from the project).
+detect_ddev() {
+  local dir="${PROJECT:-$(pwd -P)}"
+  while [ -n "$dir" ] && [ "$dir" != / ]; do
+    [ -f "$dir/.ddev/config.yaml" ] && { DDEV_ROOT="$dir"; return; }
+    dir="$(dirname "$dir")"
+  done
 }
 
 # --- prerequisites ----------------------------------------------------------
@@ -346,6 +359,11 @@ configure() {
       CONFIG="$PROJECT/.php-debug-mcp.json"
       info "using the pre-rename $CONFIG — rename it to .agentic-php-debug.json when convenient"
     fi
+    # DDEV mounts the project root at /var/www/html in the web container.
+    if [ -z "$REMOTE_ROOT" ] && [ -n "$DDEV_ROOT" ]; then
+      REMOTE_ROOT="/var/www/html${PROJECT#"$DDEV_ROOT"}"
+      info "DDEV project $DDEV_ROOT"
+    fi
     write_config "$CONFIG" "$REMOTE_ROOT" "$PROJECT"
     RUNS_DIR="$PROJECT/.php-debug-plan/runs"
     [ -z "$REMOTE_ROOT" ] || info "maps $REMOTE_ROOT (container) → $PROJECT (host)"
@@ -456,6 +474,7 @@ php_ini() { php -r "echo ini_get('$1');" 2>/dev/null; }
 
 check_xdebug() {
   step "PHP + Xdebug"
+  if [ -n "$DDEV_ROOT" ]; then check_xdebug_ddev; return; fi
   if ! has php; then
     info "no 'php' on PATH. Fine if PHP runs in Docker/DDEV/a VM — see the Xdebug notes below."
     XDEBUG_STATE=nophp
@@ -473,28 +492,66 @@ check_xdebug() {
     XDEBUG_STATE=missing
     return
   fi
+  case ",$(php_ini xdebug.mode)," in
+    *,debug,*) ;;
+    *) [ "$WITH_XDEBUG" != 1 ] || write_xdebug_ini || true ;;
+  esac
+  report_xdebug "$xv" "$(php_ini xdebug.mode)" "$(php_ini xdebug.start_with_request)" "$(php_ini xdebug.client_port)"
+}
+
+# report_xdebug <version> <mode> <start_with_request> <client_port> — sets XDEBUG_STATE.
+report_xdebug() {
+  local xv="$1" mode="$2" swr="$3" cport="$4"
   case "$xv" in 2.*) warn "Xdebug $xv is too old — Xdebug 3 is required"; XDEBUG_STATE=old; return ;; esac
   ok "xdebug $xv"
-
-  local mode swr cport
-  mode="$(php_ini xdebug.mode)"; swr="$(php_ini xdebug.start_with_request)"; cport="$(php_ini xdebug.client_port)"
   case ",$mode," in
     *,debug,*) ok "xdebug.mode=$mode" ;;
-    *)
-      if [ "$WITH_XDEBUG" = 1 ] && write_xdebug_ini; then
-        mode="$(php_ini xdebug.mode)"; swr="$(php_ini xdebug.start_with_request)"; cport="$(php_ini xdebug.client_port)"
-        ok "xdebug.mode=$mode"
-      else
-        warn "xdebug.mode=$mode — must include 'debug'"
-      fi ;;
+    *) warn "xdebug.mode=$mode — must include 'debug'" ;;
   esac
   case "$swr" in
-    yes|trigger) ok "xdebug.start_with_request=$swr" ;;
+    yes|1|trigger) ok "xdebug.start_with_request=$swr" ;;
     *) warn "xdebug.start_with_request=${swr:-default} — use 'trigger' (plans send the trigger for you) or 'yes'" ;;
   esac
   [ "$cport" = "$XDEBUG_PORT" ] && ok "xdebug.client_port=$cport" \
     || warn "xdebug.client_port=$cport but the server listens on $XDEBUG_PORT"
   XDEBUG_STATE=ok
+}
+
+# PHP runs in DDEV's web container, so the host 'php' is irrelevant. Never
+# starts a stopped project: `ddev xdebug` and `ddev exec` would do just that.
+check_xdebug_ddev() {
+  ok "DDEV project $DDEV_ROOT — checking PHP in its web container"
+  XDEBUG_STATE=ddev
+  has ddev || { warn "no 'ddev' on PATH — install DDEV to debug this project"; return; }
+  local status
+  status="$(cd "$DDEV_ROOT" && ddev describe -j </dev/null 2>/dev/null \
+    | node -e 'try { console.log(JSON.parse(require("fs").readFileSync(0, "utf8")).raw.status || "") } catch {}' 2>/dev/null)" || status=
+  if [ "$status" != running ]; then
+    warn "DDEV project is ${status:-not running} — left as is. Run: ddev start && ddev xdebug on"
+    return
+  fi
+  if ! (cd "$DDEV_ROOT" && ddev xdebug status) </dev/null 2>/dev/null | grep -q 'xdebug enabled'; then
+    if [ "$WITH_XDEBUG" = 1 ] && (cd "$DDEV_ROOT" && ddev xdebug on) </dev/null >>"$LOG" 2>&1; then
+      ok "ddev xdebug on"
+      info "it stays on until the next ddev restart; xdebug_enabled: true in .ddev/config.yaml keeps it on"
+    else
+      warn "Xdebug is off in DDEV — run: ddev xdebug on"
+      return
+    fi
+  fi
+  # XDEBUG_MODE=off stops this probe from dialing the debugger; ini_get still
+  # reports the configured values.
+  local vals pv xv mode swr cport
+  vals="$(cd "$DDEV_ROOT" && ddev exec -- env XDEBUG_MODE=off php -r \
+    'echo PHP_VERSION, "|", phpversion("xdebug") ?: "", "|", ini_get("xdebug.mode"), "|", ini_get("xdebug.start_with_request"), "|", ini_get("xdebug.client_port");' \
+    </dev/null 2>/dev/null)" || vals=
+  vals="${vals%$'\r'}"
+  IFS='|' read -r pv xv mode swr cport <<<"$vals"
+  [ -n "$pv" ] || { warn "could not run php in the DDEV web container (ddev exec failed)"; return; }
+  ok "php $pv (DDEV)"
+  [ -n "$xv" ] || { warn "Xdebug is not loaded in the DDEV web container — run: ddev xdebug on"; return; }
+  report_xdebug "$xv" "$mode" "$swr" "$cport"
+  [ -n "$PROJECT" ] || warn "no --project: re-run with --project $DDEV_ROOT so /var/www/html maps to it"
 }
 
 install_xdebug() {
@@ -615,7 +672,8 @@ summary() {
       xdebug.client_port=$XDEBUG_PORT
   Docker:  same settings, plus  xdebug.client_host=host.docker.internal
            and re-run with  --project <dir> --remote-root /var/www/html
-  DDEV:    ddev xdebug on   (then --remote-root /var/www/html)
+  DDEV:    ddev start && ddev xdebug on   (or re-run with --xdebug while it runs)
+           and --project <dir>, which maps /var/www/html for you
 EOF
       ;;
   esac
@@ -633,6 +691,7 @@ main() {
   parse_args "$@"
   if [ "$UNINSTALL" = 1 ]; then uninstall; return; fi
   detect_source
+  detect_ddev
   check_prereqs
   install_core
   configure
