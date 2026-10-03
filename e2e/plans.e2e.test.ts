@@ -166,28 +166,31 @@ describe.skipIf(!php)('react mode as an agent sees it', () => {
         error?: unknown;
       };
     };
-    const php = spawn('sh', ['e2e/php.sh', 'e2e/fixtures/cart.php'], {
-      cwd: root,
-      env: {
-        ...process.env,
-        XDEBUG_MODE: 'debug',
-        XDEBUG_TRIGGER: '1',
-        XDEBUG_CONFIG: 'client_host=127.0.0.1 client_port=9013',
-      },
-      stdio: 'ignore',
-    });
+    let php: ReturnType<typeof spawn> | undefined;
     try {
       expect((await call('debug_launch', { port: 9013 })).success).toBe(true);
       const file = join(root, 'e2e', 'fixtures', 'cart.php');
       expect((await call('debug_set_breakpoints', { path: file, breakpoints: [{ line: 24 }] })).success).toBe(true);
 
       // Launch first, then PHP: the connection arrives after the breakpoint is armed.
+      // Started earlier, a fast PHP finds nothing listening and runs undebugged.
+      php = spawn('sh', ['e2e/php.sh', 'e2e/fixtures/cart.php'], {
+        cwd: root,
+        env: {
+          ...process.env,
+          XDEBUG_MODE: 'debug',
+          XDEBUG_TRIGGER: '1',
+          XDEBUG_CONFIG: 'client_host=127.0.0.1 client_port=9013',
+        },
+        stdio: 'ignore',
+      });
       let first: any;
       for (let i = 0; i < 5; i++) {
         first = (await call('debug_wait', { timeout: 30_000, snapshot: { watch: ['$raw'], locals: { depth: 0 } } }))
           .data;
         if (first.status.state === 'paused') break;
       }
+      expect(first.status.state, JSON.stringify(first)).toBe('paused');
       expect(first.snapshot.location).toMatchObject({ file, line: 24, function: 'Cart->lineTotal' });
       expect(first.snapshot.locals.$price.value).toBe('1.115');
       expect(first.snapshot.delta).toEqual({ first: true });
@@ -202,7 +205,7 @@ describe.skipIf(!php)('react mode as an agent sees it', () => {
 
       expect((await call('debug_terminate')).success).toBe(true);
     } finally {
-      php.kill();
+      php?.kill();
       await client.close();
     }
   });
